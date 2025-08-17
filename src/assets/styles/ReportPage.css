@@ -1,0 +1,83 @@
+/* 📄 ARQUIVO GERADO: src/assets/styles/ReportPage.css */
+.report-page {
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.report-page h1 {
+  margin-top: 0;
+}
+
+.report-page p {
+  color: #666;
+  margin-bottom: 2rem;
+}
+
+.filters {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-end;
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.filter-group label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #6c757d;
+}
+
+.competencia-input {
+  padding: 8px 12px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  background-color: #fff;
+  font-size: 1rem;
+  height: 41px;
+}
+
+.loading-message,
+.no-data-message {
+  text-align: center;
+  padding: 3rem;
+  font-size: 1.1rem;
+  color: #6c757d;
+}
+
+.table-container {
+  overflow-x: auto;
+}
+
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.report-table th,
+.report-table td {
+  border: 1px solid #dee2e6;
+  padding: 12px;
+  text-align: left;
+}
+
+.report-table thead {
+  background-color: #e9ecef;
+}
+
+.report-table th {
+  font-weight: 600;
+}
+
+.report-table tbody tr:nth-of-type(odd) {
+  background-color: #f8f9fa;
+}

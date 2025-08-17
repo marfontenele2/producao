@@ -1,0 +1,19 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "equipes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ubsId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "nome",
+          "order": "ASCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

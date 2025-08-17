@@ -1,0 +1,70 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Funções para simplificar as regras
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isRole(role) {
+      return isSignedIn() && request.auth.token.role == role;
+    }
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    // Regra para a coleção 'users'
+    match /users/{userId} {
+      allow read: if isSignedIn() && (isOwner(userId) || isRole('Administrador'));
+      allow write: if isRole('Administrador');
+    }
+
+    // Regras para coleções de configuração
+    match /ubs/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isRole('Administrador');
+    }
+    match /equipes/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isRole('Administrador');
+    }
+    match /prazos/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isRole('Administrador');
+    }
+
+    // Regras para coleções de produção (forma explícita e correta)
+    match /scnes/{docId} {
+      allow read: if isRole('Administrador') || (isRole('Gerente') && getUserData().ubsId == resource.data.ubsId);
+      allow write: if isRole('Administrador') || (isRole('Enfermeiro') && request.resource.data.equipeId == getUserData().equipeId);
+    }
+    match /cronogramas/{docId} {
+      allow read: if isRole('Administrador') || (isRole('Gerente') && getUserData().ubsId == resource.data.ubsId);
+      allow write: if isRole('Administrador') || (isRole('Enfermeiro') && request.resource.data.equipeId == getUserData().equipeId);
+    }
+    match /producaoGestantes/{docId} {
+      allow read: if isRole('Administrador') || (isRole('Gerente') && getUserData().ubsId == resource.data.ubsId);
+      allow write: if isRole('Administrador') || (isRole('Enfermeiro') && request.resource.data.equipeId == getUserData().equipeId);
+    }
+    match /producaoAdolescente/{docId} {
+      allow read: if isRole('Administrador') || (isRole('Gerente') && getUserData().ubsId == resource.data.ubsId);
+      allow write: if isRole('Administrador') || (isRole('Enfermeiro') && request.resource.data.equipeId == getUserData().equipeId);
+    }
+    match /producaoFerro/{docId} {
+      allow read: if isRole('Administrador') || (isRole('Gerente') && getUserData().ubsId == resource.data.ubsId);
+      allow write: if isRole('Administrador') || (isRole('Enfermeiro') && request.resource.data.equipeId == getUserData().equipeId);
+    }
+    match /producaoEducacao/{docId} {
+      allow read: if isRole('Administrador') || (isRole('Gerente') && getUserData().ubsId == resource.data.ubsId);
+      allow write: if isRole('Administrador') || (isRole('Enfermeiro') && request.resource.data.equipeId == getUserData().equipeId);
+    }
+    match /producaoBoletins/{docId} {
+      allow read: if isRole('Administrador') || (isRole('Gerente') && getUserData().ubsId == resource.data.ubsId);
+      allow write: if isRole('Administrador') || (isRole('Enfermeiro') && request.resource.data.equipeId == getUserData().equipeId);
+    }
+  }
+}

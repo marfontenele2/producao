@@ -1,0 +1,38 @@
+// 📄 ARQUIVO GERADO: src/assets/styles/print-layout.scss
+
+// Define as margens da página ao imprimir
+@page {
+  margin: 1.5cm;
+}
+
+.print-container {
+  font-family: "Times New Roman", Times, serif;
+  color: #000;
+}
+
+.print-content {
+  border: 2px solid #000;
+  padding: 1.2cm;
+}
+
+.print-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11pt;
+
+  th,
+  td {
+    border: 1px solid #000;
+    padding: 4px 6px;
+    text-align: center;
+  }
+
+  th {
+    background-color: #f0f0f0;
+    font-weight: bold;
+  }
+
+  .total-cell {
+    font-weight: bold;
+  }
+}
