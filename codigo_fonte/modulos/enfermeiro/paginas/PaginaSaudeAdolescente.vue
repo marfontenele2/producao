@@ -370,7 +370,8 @@ async function buscarDados() {
     )
     producao.value = dados ? dados : criarEstadoInicial()
   } catch (error) {
-    storeNotificacoes.mostrarNotificacao('Erro ao buscar dados.', 'erro')
+    // [CORRIGIDO] Chamada de notificação
+    storeNotificacoes.mostrarNotificacao({ mensagem: 'Erro ao buscar dados.', tipo: 'erro' })
     console.error(error)
   } finally {
     carregando.value = false
@@ -379,17 +380,34 @@ async function buscarDados() {
 
 async function salvarDados() {
   if (!competencia.value || !producao.value) {
-    storeNotificacoes.mostrarNotificacao('Selecione uma competência para salvar.', 'alerta')
+    // [CORRIGIDO] Chamada de notificação
+    storeNotificacoes.mostrarNotificacao({
+      mensagem: 'Selecione uma competência para salvar.',
+      tipo: 'alerta',
+    })
     return
   }
   salvando.value = true
   try {
     const equipeId = storeUsuario.usuario.equipeId
     await servicoProducaoAdolescente.salvarProducao(competencia.value, equipeId, producao.value)
-    storeNotificacoes.mostrarNotificacao('Produção salva com sucesso!', 'sucesso')
+
+    // [CORRIGIDO] Chamada de notificação
+    storeNotificacoes.mostrarNotificacao({
+      mensagem: 'Produção salva com sucesso!',
+      tipo: 'sucesso',
+    })
+
+    // [ADICIONADO] Lógica de reset após o sucesso
+    producao.value = null
+    competencia.value = ''
   } catch (error) {
     console.error('Erro ao salvar produção:', error)
-    storeNotificacoes.mostrarNotificacao('Falha ao salvar. Tente novamente.', 'erro')
+    // [CORRIGIDO] Chamada de notificação
+    storeNotificacoes.mostrarNotificacao({
+      mensagem: 'Falha ao salvar. Tente novamente.',
+      tipo: 'erro',
+    })
   } finally {
     salvando.value = false
   }
@@ -401,10 +419,29 @@ const producaoComputada = computed(() => {
   if (!producao.value) {
     const estadoVazio = criarEstadoInicial()
     return {
-      atendimentos: estadoVazio.atendimentos,
-      metodos: estadoVazio.metodos,
-      totaisAtendimento: {},
-      totaisMetodos: {},
+      atendimentos: estadoVazio.atendimentos.map((item) => ({
+        ...item,
+        totalGeral: 0,
+        valido: true,
+      })),
+      metodos: estadoVazio.metodos.map((item) => ({ ...item, total: 0 })),
+      totaisAtendimento: {
+        faixa10a14Masc: 0,
+        faixa10a14Fem: 0,
+        faixa15a19Masc: 0,
+        faixa15a19Fem: 0,
+        consMedica: 0,
+        consEnfermagem: 0,
+        consOutros: 0,
+        totalGeral: 0,
+      },
+      totaisMetodos: {
+        faixa10a14Masc: 0,
+        faixa10a14Fem: 0,
+        faixa15a19Masc: 0,
+        faixa15a19Fem: 0,
+        total: 0,
+      },
     }
   }
 

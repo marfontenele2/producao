@@ -3,20 +3,33 @@ import { ref } from 'vue'
 import { v4 as uuidv4 } from 'uuid'
 
 export const useStoreNotificacoes = defineStore('notificacoes', () => {
-  /** @type {import("vue").Ref<Array<{id: string, mensagem: string, tipo: 'sucesso' | 'erro'}>>} */
+  /**
+   * [CORRIGIDO] A tipagem do array agora inclui 'alerta' para refletir o uso real.
+   * @type {import("vue").Ref<Array<{id: string, mensagem: string, tipo: 'sucesso' | 'erro' | 'alerta'}>>}
+   */
   const notificacoes = ref([])
 
   /**
    * Exibe uma nova notificação na tela.
-   * @param {{mensagem: string, tipo: 'sucesso' | 'erro', duracao?: number}} payload - Os dados da notificação.
+   * [CORRIGIDO] A assinatura da função e o JSDoc estão claros que o argumento é um único objeto.
+   * @param {{mensagem: string, tipo: 'sucesso' | 'erro' | 'alerta', duracao?: number}} payload - Os dados da notificação.
    */
-  function mostrarNotificacao({ mensagem, tipo = 'sucesso', duracao = 4000 }) {
+  function mostrarNotificacao(payload) {
+    // Validação para garantir que a mensagem não seja vazia ou nula.
+    if (!payload || !payload.mensagem) {
+      console.error('Tentativa de exibir notificação sem mensagem.', payload)
+      return
+    }
+
     const id = uuidv4()
-    notificacoes.value.push({ id, mensagem, tipo })
+    const defaults = { tipo: 'sucesso', duracao: 4000 }
+    const notificacao = { id, ...defaults, ...payload }
+
+    notificacoes.value.push(notificacao)
 
     setTimeout(() => {
       removerNotificacao(id)
-    }, duracao)
+    }, notificacao.duracao)
   }
 
   /**

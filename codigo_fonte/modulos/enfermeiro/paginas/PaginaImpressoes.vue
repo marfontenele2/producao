@@ -17,6 +17,14 @@
           <FileSpreadsheet :size="32" />
           <span class="card-titulo">Relatório Mensal de Suplementos</span>
         </div>
+        <div class="card-impressao" @click="navegarPara('EnfermeiroImpressaoEducacaoPermanente')">
+          <Presentation :size="32" />
+          <span class="card-titulo">Relatório de Educação Permanente</span>
+        </div>
+        <div class="card-impressao" @click="navegarPara('EnfermeiroImpressaoGestantes')">
+          <Baby :size="32" />
+          <span class="card-titulo">Consolidado de Gestantes</span>
+        </div>
       </div>
     </div>
   </div>
@@ -24,7 +32,9 @@
 
 <script setup>
 import { useRouter } from 'vue-router'
-import { Printer, FileSpreadsheet, ClipboardList } from 'lucide-vue-next' // Ícone adicionado
+// [ADICIONADO] Importação do novo ícone
+import { Printer, FileSpreadsheet, ClipboardList, Presentation, Baby } from 'lucide-vue-next'
+
 const router = useRouter()
 function navegarPara(nomeRota) {
   router.push({ name: nomeRota })

@@ -5,8 +5,10 @@ import { doc, getDoc } from 'firebase/firestore'
 const mapeamentoColecoes = {
   adolescente: 'producaoAdolescente',
   suplementos: 'producaoSuplementos',
-  // Adicione outras produções mensais aqui conforme forem criadas
-  // Ex: gestantes: 'producaoGestantes'
+  educacaoPermanente: 'producaoEducacaoPermanente',
+  bpa: 'producaoBpa',
+  gestantes: 'producaoGestantes',
+  boletimTestesRapidos: 'boletimDados',
 }
 
 /**
@@ -14,7 +16,7 @@ const mapeamentoColecoes = {
  */
 export const servicoVerificacaoProducao = {
   /**
-   * Verifica se uma produção mensal foi entregue (se o documento existe).
+   * Verifica se uma produção mensal foi entregue.
    * @param {string} competencia - A competência no formato 'YYYY-MM'.
    * @param {string} equipeId - O ID da equipe.
    * @param {string} tipoProducao - A chave da produção (ex: 'adolescente', 'suplementos').
@@ -30,6 +32,20 @@ export const servicoVerificacaoProducao = {
       const docId = `${competencia}_${equipeId}`
       const docRef = doc(db, colecao, docId)
       const docSnap = await getDoc(docRef)
+
+      if (!docSnap.exists()) {
+        return false
+      }
+
+      // Lógica especial: para gestantes e boletim, "entregue" significa "finalizado".
+      // Para os outros, a simples existência do documento é suficiente.
+      if (tipoProducao === 'gestantes' || tipoProducao === 'boletimTestesRapidos') {
+        const dados = docSnap.data()
+        // Acessa o campo 'finalizado' dentro do objeto 'registro' ou no topo do documento.
+        const registro = dados.registro || dados
+        return registro?.finalizado === true
+      }
+
       return docSnap.exists()
     } catch (error) {
       console.error(`Erro ao verificar entrega para ${tipoProducao}:`, error)
@@ -40,7 +56,6 @@ export const servicoVerificacaoProducao = {
   /**
    * (Placeholder) Verifica se uma produção semanal foi entregue.
    * A lógica exata dependerá de como os dados semanais são armazenados.
-   * Por enquanto, vamos assumir que não foi entregue.
    * @returns {Promise<boolean>}
    */
   async verificarEntregaSemanal(/* ...parametros da semana... */) {

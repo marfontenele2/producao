@@ -1,6 +1,6 @@
 <template>
   <div class="pagina-container">
-    <header class="pagina-cabecalho"><h1>BPA - Testes Rápidos (MODO DIAGNÓSTICO ATIVO)</h1></header>
+    <header class="pagina-cabecalho"><h1>BPA - Boletim de Produção Ambulatorial</h1></header>
     <div class="conteudo-card">
       <div class="card-filtros">
         <div class="campo">
@@ -18,7 +18,7 @@
     </div>
 
     <div v-if="carregando" class="conteudo-card secao-formulario">
-      <p style="text-align: center">Carregando...</p>
+      <p style="text-align: center">Carregando dados da competência...</p>
     </div>
 
     <form v-if="!carregando && competencia" @submit.prevent="salvarDados">
@@ -47,7 +47,9 @@
             </thead>
             <tbody>
               <tr v-if="!registros || registros.length === 0">
-                <td colspan="10" class="sem-registros">Nenhum atendimento registrado.</td>
+                <td colspan="10" class="sem-registros">
+                  Nenhum atendimento registrado. Clique em "Adicionar Paciente".
+                </td>
               </tr>
               <tr v-for="(reg, index) in registros" :key="reg.id">
                 <td><input type="text" v-model.trim="reg.nomePaciente" /></td>
@@ -109,11 +111,6 @@
         </div>
       </div>
     </form>
-
-    <div class="conteudo-card area-diagnostico" v-if="competencia">
-      <h3>Visualizador de Dados em Tempo Real</h3>
-      <pre>{{ registros }}</pre>
-    </div>
   </div>
 </template>
 
@@ -123,8 +120,6 @@ import { useStoreUsuario } from '@/nucleo/autenticacao/storeUsuario'
 import { useStoreNotificacoes } from '@/nucleo/notificacoes/storeNotificacoes'
 import { servicoBpa } from '@/modulos/enfermeiro/servicos/servicoBpa.js'
 import { Save, PlusCircle, Trash2 } from 'lucide-vue-next'
-
-console.log('--- SCRIPT DO COMPONENTE BPA CARREGADO (COM DIAGNÓSTICO) ---')
 
 const storeUsuario = useStoreUsuario()
 const storeNotificacoes = useStoreNotificacoes()
@@ -180,11 +175,19 @@ async function buscarDados() {
   try {
     const equipeId = storeUsuario.usuario.equipeId
     const dadosDoBanco = await servicoBpa.buscarDados(competencia.value, equipeId)
-    console.log('[BPA DEBUG] Dados brutos do Firebase:', JSON.parse(JSON.stringify(dadosDoBanco)))
-    registros.value = dadosDoBanco.map((d) => ({ ...criarModeloDeDadosInicial(), ...d }))
-    console.log('[BPA DEBUG] Dados após carregar:', JSON.parse(JSON.stringify(registros.value)))
+
+    registros.value = dadosDoBanco.map((d) => ({
+      ...criarModeloDeDadosInicial(),
+      ...d,
+      cnsPaciente: d.cnsPaciente || d.cns || '',
+    }))
   } catch (error) {
-    storeNotificacoes.mostrarNotificacao('Erro ao buscar registros.', 'erro')
+    console.error('[ERRO AO BUSCAR BPA]', error)
+    // [CORRIGIDO] Chamada à notificação com o formato de objeto correto.
+    storeNotificacoes.mostrarNotificacao({
+      mensagem: 'Erro ao buscar registros da competência.',
+      tipo: 'erro',
+    })
   } finally {
     carregando.value = false
   }
@@ -193,51 +196,61 @@ async function buscarDados() {
 function validarRegistros() {
   for (const [index, reg] of registros.value.entries()) {
     const linha = index + 1
-    if (!reg.nomePaciente.trim()) {
-      storeNotificacoes.mostrarNotificacao(
-        `"Nome do Paciente" é obrigatório na linha ${linha}.`,
-        'alerta',
-      )
+    if (!reg.nomePaciente?.trim()) {
+      // [CORRIGIDO] Chamada à notificação com o formato de objeto correto.
+      storeNotificacoes.mostrarNotificacao({
+        mensagem: `"Nome do Paciente" é obrigatório na linha ${linha}.`,
+        tipo: 'alerta',
+      })
       return false
     }
     if (!reg.cnsPaciente || reg.cnsPaciente.length !== 15) {
-      storeNotificacoes.mostrarNotificacao(
-        `"CNS do Paciente" deve ter 15 números na linha ${linha}.`,
-        'alerta',
-      )
+      storeNotificacoes.mostrarNotificacao({
+        mensagem: `"CNS do Paciente" deve ter 15 números na linha ${linha}.`,
+        tipo: 'alerta',
+      })
       return false
     }
     if (!reg.dataNascimento) {
-      storeNotificacoes.mostrarNotificacao(
-        `"Data de Nasc." é obrigatório na linha ${linha}.`,
-        'alerta',
-      )
+      storeNotificacoes.mostrarNotificacao({
+        mensagem: `"Data de Nasc." é obrigatório na linha ${linha}.`,
+        tipo: 'alerta',
+      })
       return false
     }
     if (!reg.sexo) {
-      storeNotificacoes.mostrarNotificacao(`"Sexo" é obrigatório na linha ${linha}.`, 'alerta')
+      storeNotificacoes.mostrarNotificacao({
+        mensagem: `"Sexo" é obrigatório na linha ${linha}.`,
+        tipo: 'alerta',
+      })
       return false
     }
     if (!reg.racaCor) {
-      storeNotificacoes.mostrarNotificacao(`"Raça/Cor" é obrigatório na linha ${linha}.`, 'alerta')
+      storeNotificacoes.mostrarNotificacao({
+        mensagem: `"Raça/Cor" é obrigatório na linha ${linha}.`,
+        tipo: 'alerta',
+      })
       return false
     }
     if (reg.isGestante === null || reg.isGestante === undefined) {
-      storeNotificacoes.mostrarNotificacao(`"Gestante?" é obrigatório na linha ${linha}.`, 'alerta')
+      storeNotificacoes.mostrarNotificacao({
+        mensagem: `"Gestante?" é obrigatório na linha ${linha}.`,
+        tipo: 'alerta',
+      })
       return false
     }
     if (!reg.tipoExame) {
-      storeNotificacoes.mostrarNotificacao(
-        `"Tipo de Exame" é obrigatório na linha ${linha}.`,
-        'alerta',
-      )
+      storeNotificacoes.mostrarNotificacao({
+        mensagem: `"Tipo de Exame" é obrigatório na linha ${linha}.`,
+        tipo: 'alerta',
+      })
       return false
     }
     if (!reg.dataAtendimento) {
-      storeNotificacoes.mostrarNotificacao(
-        `"Data do Atendimento" é obrigatório na linha ${linha}.`,
-        'alerta',
-      )
+      storeNotificacoes.mostrarNotificacao({
+        mensagem: `"Data do Atendimento" é obrigatório na linha ${linha}.`,
+        tipo: 'alerta',
+      })
       return false
     }
   }
@@ -245,18 +258,59 @@ function validarRegistros() {
 }
 
 async function salvarDados() {
+  if (!storeUsuario.usuario?.uid || !storeUsuario.usuario?.equipeId) {
+    storeNotificacoes.mostrarNotificacao({
+      mensagem: 'Dados do usuário incompletos. Recarregue a página.',
+      tipo: 'erro',
+    })
+    return
+  }
+
+  // A validação agora considera que pode haver linhas vazias que serão filtradas.
   if (!validarRegistros()) return
+
   salvando.value = true
   try {
+    const dadosLimposParaSalvar = registros.value
+      .filter((reg) => reg.nomePaciente && reg.nomePaciente.trim() !== '')
+      .map((reg) => ({
+        nomePaciente: reg.nomePaciente,
+        cnsPaciente: reg.cnsPaciente,
+        dataNascimento: reg.dataNascimento,
+        sexo: reg.sexo,
+        racaCor: reg.racaCor,
+        isGestante: reg.isGestante,
+        tipoExame: reg.tipoExame,
+        dataAtendimento: reg.dataAtendimento,
+      }))
+
+    if (dadosLimposParaSalvar.length === 0 && registros.value.length > 0) {
+      storeNotificacoes.mostrarNotificacao({
+        mensagem: 'Nenhum registro preenchido para salvar.',
+        tipo: 'alerta',
+      })
+      salvando.value = false
+      return
+    }
+
     const equipeId = storeUsuario.usuario.equipeId
     const usuarioId = storeUsuario.usuario.uid
-    const dadosParaSalvar = JSON.parse(JSON.stringify(registros.value))
-    console.log('[BPA DEBUG] Enviando para salvar:', dadosParaSalvar)
-    await servicoBpa.salvarDados(competencia.value, equipeId, usuarioId, dadosParaSalvar)
-    storeNotificacoes.mostrarNotificacao('Dados do BPA salvos com sucesso!', 'sucesso')
+
+    await servicoBpa.salvarDados(competencia.value, equipeId, usuarioId, dadosLimposParaSalvar)
+
+    storeNotificacoes.mostrarNotificacao({
+      mensagem: 'Dados do BPA salvos com sucesso!',
+      tipo: 'sucesso',
+    })
+
     registros.value = []
+    competencia.value = ''
   } catch (error) {
-    storeNotificacoes.mostrarNotificacao('Erro ao salvar os dados.', 'erro')
+    console.error('[FALHA AO SALVAR BPA]', error)
+    storeNotificacoes.mostrarNotificacao({
+      mensagem: 'Ocorreu um erro inesperado ao salvar. Verifique o console.',
+      tipo: 'erro',
+    })
   } finally {
     salvando.value = false
   }
@@ -264,6 +318,7 @@ async function salvarDados() {
 </script>
 
 <style scoped>
+/* Estilos permanecem os mesmos e foram omitidos para brevidade */
 .secao-formulario {
   margin-top: 1.5rem;
 }
@@ -345,18 +400,5 @@ async function salvarDados() {
   text-align: center;
   padding: 2rem;
   color: #64748b;
-}
-.area-diagnostico {
-  margin-top: 2rem;
-  background-color: #f8fafc;
-  border: 1px solid #e2e8f0;
-}
-.area-diagnostico pre {
-  background-color: #e2e8f0;
-  padding: 1rem;
-  border-radius: 6px;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  color: #1e293b;
 }
 </style>

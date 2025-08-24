@@ -8,6 +8,7 @@
       >
         <CircleCheck v-if="notificacao.tipo === 'sucesso'" :size="20" />
         <CircleAlert v-if="notificacao.tipo === 'erro'" :size="20" />
+        <TriangleAlert v-if="notificacao.tipo === 'alerta'" :size="20" />
         <span>{{ notificacao.mensagem }}</span>
       </div>
     </transition-group>
@@ -16,7 +17,8 @@
 
 <script setup>
 import { useStoreNotificacoes } from '@/nucleo/notificacoes/storeNotificacoes'
-import { CircleCheck, CircleAlert } from 'lucide-vue-next'
+// [ADICIONADO] Importação do novo ícone
+import { CircleCheck, CircleAlert, TriangleAlert } from 'lucide-vue-next'
 const store = useStoreNotificacoes()
 </script>
 
@@ -46,6 +48,10 @@ const store = useStoreNotificacoes()
 }
 .notificacao-erro {
   background-color: #ef4444; /* Vermelho */
+}
+/* [ADICIONADO] Estilo para o tipo 'alerta' */
+.notificacao-alerta {
+  background-color: #f97316; /* Laranja */
 }
 
 /* Animações de entrada e saída */

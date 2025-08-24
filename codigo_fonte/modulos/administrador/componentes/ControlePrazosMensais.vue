@@ -8,23 +8,23 @@
     </div>
     <div v-if="carregando" class="mensagem-info">Carregando prazos...</div>
     <div class="lista-prazos" v-else>
-      <div v-for="modulo in modulosMensais" :key="modulo.chave" class="item-prazo">
+      <div v-for="modulo in modulosMensais" :key="modulo.chavePrazo" class="item-prazo">
         <span class="nome-modulo">{{ modulo.nome }}</span>
         <div class="campos-data">
           <div class="grupo-formulario-inline">
-            <label :for="`abertura-${modulo.chave}`">Abertura</label>
+            <label :for="`abertura-${modulo.chavePrazo}`">Abertura</label>
             <input
-              :id="`abertura-${modulo.chave}`"
+              :id="`abertura-${modulo.chavePrazo}`"
               type="date"
-              v-model="prazos[modulo.chave].abertura"
+              v-model="prazos[modulo.chavePrazo].abertura"
             />
           </div>
           <div class="grupo-formulario-inline">
-            <label :for="`fechamento-${modulo.chave}`">Fechamento</label>
+            <label :for="`fechamento-${modulo.chavePrazo}`">Fechamento</label>
             <input
-              :id="`fechamento-${modulo.chave}`"
+              :id="`fechamento-${modulo.chavePrazo}`"
               type="date"
-              v-model="prazos[modulo.chave].fechamento"
+              v-model="prazos[modulo.chavePrazo].fechamento"
             />
           </div>
         </div>
@@ -40,28 +40,15 @@ import { servicoPrazos } from '../servicos/servicoPrazos.js'
 const competenciaSelecionada = ref(new Date().toISOString().slice(0, 7))
 const prazos = ref({})
 const carregando = ref(true)
-// ... (template e imports existentes)
+
 const modulosMensais = [
-  { nome: 'BPA (Testes Rápidos)', rota: 'EnfermeiroBpa', chavePrazo: 'bpa' }, // <-- ADICIONADO AQUI
-  {
-    nome: 'Boletim de Testes (Antigo)',
-    rota: 'EnfermeiroBoletim',
-    chavePrazo: 'boletimTestesRapidos',
-  },
-  { nome: 'Suplementos', rota: 'EnfermeiroSuplementos', chavePrazo: 'suplementos' },
-  {
-    nome: 'Educação Permanente',
-    rota: 'EnfermeiroEducacaoPermanente',
-    chavePrazo: 'educacaoPermanente',
-  },
-  { nome: 'Saúde do Adolescente', rota: 'EnfermeiroSaudeAdolescente', chavePrazo: 'adolescente' },
-  {
-    nome: 'Acompanhamento de Gestantes',
-    rota: 'EnfermeiroAcompanhamentoGestantes',
-    chavePrazo: 'gestantes',
-  },
+  { nome: 'BPA (Testes Rápidos)', chavePrazo: 'bpa' },
+  { nome: 'Boletim de Testes (Antigo)', chavePrazo: 'boletimTestesRapidos' },
+  { nome: 'Suplementos', chavePrazo: 'suplementos' },
+  { nome: 'Educação Permanente', chavePrazo: 'educacaoPermanente' },
+  { nome: 'Saúde do Adolescente', chavePrazo: 'adolescente' },
+  { nome: 'Acompanhamento de Gestantes', chavePrazo: 'gestantes' },
 ]
-// ... (restante do script e style)
 
 let unsubscribe = null
 
@@ -73,9 +60,9 @@ watch(
     unsubscribe = servicoPrazos.monitorarPrazosDoMes(novaCompetencia, (dadosRemotos) => {
       const prazosLocais = {}
       modulosMensais.forEach((mod) => {
-        prazosLocais[mod.chave] = {
-          abertura: dadosRemotos[mod.chave]?.abertura || '',
-          fechamento: dadosRemotos[mod.chave]?.fechamento || '',
+        prazosLocais[mod.chavePrazo] = {
+          abertura: dadosRemotos[mod.chavePrazo]?.abertura || '',
+          fechamento: dadosRemotos[mod.chavePrazo]?.fechamento || '',
         }
       })
       prazos.value = prazosLocais
@@ -90,6 +77,8 @@ onUnmounted(() => {
 })
 
 defineExpose({
+  prazos,
+  competenciaSelecionada,
   salvar: () => servicoPrazos.salvarPrazosDoMes(competenciaSelecionada.value, prazos.value),
 })
 </script>

@@ -6,7 +6,7 @@ let cachePrazosSemanais = null
 let competenciaCache = null
 
 /**
- * @typedef {'Aberto' | 'Entregue' | 'Encerrado' | 'Fechado'} StatusProducao
+ * @typedef {'Aberto' | 'Entregue' | 'Encerrado' | 'Fechado' | 'Pendente'} StatusProducao
  */
 
 const mapaModulos = {
@@ -22,6 +22,8 @@ const mapaModulos = {
   saudeMental: { tipo: 'mensal' },
   producaoAcs: { tipo: 'mensal' },
   cronograma: { tipo: 'mensal' },
+  // [ADICIONADO] Módulo BPA que estava faltando no mapa
+  bpa: { tipo: 'mensal' },
 }
 
 /**
@@ -34,7 +36,7 @@ function parseDateString(dateString) {
   const parts = dateString.split('-')
   if (parts.length !== 3) return null
   // new Date(ano, mês_indexado_em_zero, dia)
-  return new Date(parts[0], parts[1] - 1, parts[2])
+  return new Date(parts[0], parseInt(parts[1], 10) - 1, parts[2])
 }
 
 export const servicoStatusProducao = {
@@ -72,10 +74,15 @@ export const servicoStatusProducao = {
     const configPrazo = prazos ? prazos[nomeModulo] : null
 
     if (definicaoModulo.tipo === 'mensal') {
-      const inicio = parseDateString(configPrazo?.abertura)
-      const fim = parseDateString(configPrazo?.fechamento)
+      // [LÓGICA ALTERADA] Introduz o status 'Pendente' para maior clareza.
+      if (!configPrazo || !configPrazo.abertura || !configPrazo.fechamento) {
+        return 'Pendente' // Retorna 'Pendente' se não houver prazos configurados.
+      }
 
-      if (!inicio || !fim) return 'Fechado'
+      const inicio = parseDateString(configPrazo.abertura)
+      const fim = parseDateString(configPrazo.fechamento)
+
+      if (!inicio || !fim) return 'Pendente' // Segurança adicional
 
       if (hoje < inicio) return 'Fechado'
       if (hoje > fim) return 'Encerrado'
@@ -83,12 +90,13 @@ export const servicoStatusProducao = {
     }
 
     if (definicaoModulo.tipo === 'semanal') {
+      // [LÓGICA ALTERADA] Introduz o status 'Pendente' para maior clareza.
       if (
         !configPrazo ||
         configPrazo.abertura === undefined ||
         configPrazo.fechamento === undefined
       ) {
-        return 'Fechado'
+        return 'Pendente'
       }
       const diaDaSemana = hoje.getDay() // Domingo = 0
       const diaAbertura = parseInt(configPrazo.abertura, 10)
@@ -97,7 +105,8 @@ export const servicoStatusProducao = {
       if (diaDaSemana >= diaAbertura && diaDaSemana <= diaFechamento) {
         return 'Aberto'
       }
-      return 'Encerrado'
+      // [LÓGICA ALTERADA] Status 'Fechado' para semanas futuras/passadas é mais apropriado que 'Encerrado'
+      return 'Fechado'
     }
 
     return 'Fechado'
@@ -114,6 +123,7 @@ export const servicoStatusProducao = {
 
   buscarPrazosSemanais() {
     return new Promise((resolve) => {
+      // Assumindo que servicoPrazosSemanais exista e funcione de forma similar
       const unsub = servicoPrazosSemanais.monitorarPrazos((dados) => {
         unsub()
         resolve(dados)

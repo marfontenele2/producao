@@ -3,7 +3,6 @@ import PrincipalLayout from '@/nucleo/layouts/PrincipalLayout.vue'
 import PaginaLogin from '@/nucleo/autenticacao/PaginaLogin.vue'
 import { configurarGuardas } from './guardas'
 
-// --- ADIÇÃO CIRÚRGICA ---
 import PaginaCarregando from '@/nucleo/componentes_comuns/PaginaCarregando.vue'
 
 // Import das páginas do Administrador
@@ -32,10 +31,20 @@ const PaginaImpressaoAdolescente = () =>
 const PaginaSuplementos = () => import('@/modulos/enfermeiro/paginas/PaginaSuplementos.vue')
 const PaginaImpressaoSuplementos = () =>
   import('@/modulos/enfermeiro/paginas/PaginaImpressaoSuplementos.vue')
-
-const PaginaEmConstrucao = () => import('@/modulos/enfermeiro/paginas/PaginaEmConstrucao.vue')
 const PaginaBpa = () => import('@/modulos/enfermeiro/paginas/PaginaBpa.vue')
 const PaginaImpressaoBpa = () => import('@/modulos/enfermeiro/paginas/PaginaImpressaoBpa.vue')
+const PaginaEducacaoPermanente = () =>
+  import('@/modulos/enfermeiro/paginas/PaginaEducacaoPermanente.vue')
+const PaginaImpressaoEducacaoPermanente = () =>
+  import('@/modulos/enfermeiro/paginas/PaginaImpressaoEducacaoPermanente.vue')
+const PaginaAcompanhamentoGestantes = () =>
+  import('@/modulos/enfermeiro/paginas/PaginaAcompanhamentoGestantes.vue')
+const PaginaImpressaoGestantes = () =>
+  import('@/modulos/enfermeiro/paginas/PaginaImpressaoGestantes.vue')
+const PaginaEmConstrucao = () => import('@/modulos/enfermeiro/paginas/PaginaEmConstrucao.vue')
+const PaginaBoletim = () => import('@/modulos/enfermeiro/paginas/PaginaBoletim.vue')
+const PaginaPreencherBoletim = () =>
+  import('@/modulos/enfermeiro/paginas/PaginaPreencherBoletim.vue')
 
 const routes = [
   {
@@ -51,10 +60,9 @@ const routes = [
       {
         path: '',
         name: 'Home',
-        // --- CORREÇÃO APLICADA ---
         component: PaginaCarregando,
       },
-      // ... resto das suas rotas ...
+      // [CORRIGIDO] Rotas do Administrador restauradas
       {
         path: 'admin/dashboard',
         name: 'DashboardAdmin',
@@ -121,6 +129,8 @@ const routes = [
         component: PaginaLogAtividades,
         meta: { roles: ['Administrador'] },
       },
+
+      // Rotas do Enfermeiro
       {
         path: 'enfermeiro/producao-mensal',
         name: 'EnfermeiroProducaoMensal',
@@ -152,6 +162,18 @@ const routes = [
         meta: { roles: ['Enfermeiro'] },
       },
       {
+        path: 'enfermeiro/producao-mensal/educacao-permanente',
+        name: 'EnfermeiroEducacaoPermanente',
+        component: PaginaEducacaoPermanente,
+        meta: { roles: ['Enfermeiro'] },
+      },
+      {
+        path: 'enfermeiro/producao-mensal/gestantes',
+        name: 'EnfermeiroAcompanhamentoGestantes',
+        component: PaginaAcompanhamentoGestantes,
+        meta: { roles: ['Enfermeiro'] },
+      },
+      {
         path: 'enfermeiro/impressoes',
         name: 'EnfermeiroImpressoes',
         component: PaginaImpressoes,
@@ -176,15 +198,15 @@ const routes = [
         meta: { roles: ['Enfermeiro'] },
       },
       {
-        path: 'enfermeiro/producao-mensal/educacao-permanente',
-        name: 'EnfermeiroEducacaoPermanente',
-        component: PaginaEmConstrucao,
+        path: 'enfermeiro/impressoes/educacao-permanente',
+        name: 'EnfermeiroImpressaoEducacaoPermanente',
+        component: PaginaImpressaoEducacaoPermanente,
         meta: { roles: ['Enfermeiro'] },
       },
       {
-        path: 'enfermeiro/producao-mensal/gestantes',
-        name: 'EnfermeiroAcompanhamentoGestantes',
-        component: PaginaEmConstrucao,
+        path: 'enfermeiro/impressoes/gestantes',
+        name: 'EnfermeiroImpressaoGestantes',
+        component: PaginaImpressaoGestantes,
         meta: { roles: ['Enfermeiro'] },
       },
       {
@@ -222,6 +244,19 @@ const routes = [
         name: 'DiagnosticoPrazos',
         component: PaginaDiagnosticoPrazos,
         meta: { roles: ['Administrador', 'Enfermeiro'] },
+      },
+      {
+        path: 'enfermeiro/producao-mensal/boletim',
+        name: 'EnfermeiroBoletim',
+        component: PaginaBoletim,
+        meta: { roles: ['Enfermeiro'] },
+      },
+      // [ADICIONADO] Nova rota para a página de preenchimento com parâmetro
+      {
+        path: 'enfermeiro/producao-mensal/boletim/:testeId',
+        name: 'EnfermeiroPreencherBoletim',
+        component: PaginaPreencherBoletim,
+        meta: { roles: ['Enfermeiro'] },
       },
     ],
   },

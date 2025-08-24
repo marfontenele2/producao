@@ -12,7 +12,7 @@
           :key="modulo.nome"
           class="card-producao"
           @click="navegarParaProducao(modulo.rota, modulo.status)"
-          :class="{ 'card-bloqueado': modulo.status !== 'Aberto' }"
+          :class="{ 'card-bloqueado': !['Aberto', 'Entregue'].includes(modulo.status) }"
         >
           <div class="card-conteudo">
             <span class="card-titulo">{{ modulo.nome }}</span>
@@ -21,11 +21,11 @@
           <div class="card-prazos">
             <div class="prazo-item">
               <span class="prazo-label">Abertura:</span>
-              <span class="prazo-data">{{ modulo.dataAbertura || 'N/D' }}</span>
+              <span class="prazo-data">{{ modulo.dataAbertura }}</span>
             </div>
             <div class="prazo-item">
               <span class="prazo-label">Fechamento:</span>
-              <span class="prazo-data">{{ modulo.dataFechamento || 'N/D' }}</span>
+              <span class="prazo-data">{{ modulo.dataFechamento }}</span>
             </div>
           </div>
         </div>
@@ -40,6 +40,7 @@ import { useRouter } from 'vue-router'
 import { useStoreUsuario } from '@/nucleo/autenticacao/storeUsuario'
 import { servicoPrazos } from '@/modulos/administrador/servicos/servicoPrazos'
 import { servicoVerificacaoProducao } from '@/modulos/enfermeiro/servicos/servicoVerificacaoProducao'
+import { servicoStatusProducao } from '@/modulos/enfermeiro/servicos/servicoStatusProducao'
 import IndicadorStatusProducao from '@/modulos/enfermeiro/componentes/IndicadorStatusProducao.vue'
 
 const router = useRouter()
@@ -77,15 +78,20 @@ const modulosMensais = [
   },
 ]
 
-onMounted(() => {
-  const equipeId = storeUsuario.usuario.equipeId
+onMounted(async () => {
+  const equipeId = storeUsuario.usuario?.equipeId
+  if (!equipeId) {
+    carregando.value = false
+    return
+  }
+
+  const statusPorPrazo = await servicoStatusProducao.obterTodosStatusProducao()
 
   servicoPrazos.monitorarPrazosDoMes(competenciaAtual, async (prazosDoMes) => {
     const modulosProcessados = []
 
     for (const modulo of modulosMensais) {
       const prazoInfo = prazosDoMes[modulo.chavePrazo] || {}
-      // CORREÇÃO APLICADA AQUI: usar 'abertura' e 'fechamento'
       const dataAbertura = prazoInfo.abertura
       const dataFechamento = prazoInfo.fechamento
 
@@ -95,19 +101,11 @@ onMounted(() => {
         modulo.chavePrazo,
       )
 
-      let status = 'Aguardando'
-      if (foiEntregue) {
-        status = 'Entregue'
-      } else if (dataAbertura && hoje >= new Date(dataAbertura + 'T00:00:00')) {
-        status = 'Aberto'
-      }
-      if (!foiEntregue && dataFechamento && hoje > new Date(dataFechamento + 'T23:59:59')) {
-        status = 'Encerrado'
-      }
+      let statusFinal = foiEntregue ? 'Entregue' : statusPorPrazo[modulo.chavePrazo] || 'Pendente'
 
       modulosProcessados.push({
         ...modulo,
-        status,
+        status: statusFinal,
         dataAbertura: dataAbertura
           ? new Date(dataAbertura + 'T00:00:00').toLocaleDateString('pt-BR')
           : 'N/D',
@@ -121,8 +119,13 @@ onMounted(() => {
   })
 })
 
+/**
+ * [ALTERADO] A lógica de navegação agora permite o acesso se o status for 'Aberto' ou 'Entregue'.
+ * O bloqueio ocorre para 'Fechado', 'Encerrado' e 'Pendente'.
+ */
 function navegarParaProducao(nomeRota, status) {
-  if (status !== 'Aberto') {
+  const statusPermitidos = ['Aberto', 'Entregue']
+  if (!statusPermitidos.includes(status)) {
     alert(`Acesso bloqueado. Status da produção: ${status}.`)
     return
   }
@@ -131,6 +134,7 @@ function navegarParaProducao(nomeRota, status) {
 </script>
 
 <style scoped>
+/* Estilos permanecem inalterados */
 .grid-cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
