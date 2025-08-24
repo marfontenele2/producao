@@ -1,0 +1,187 @@
+/* ==========================================================================
+   ESTILOS COMUNS PARA PÁGINAS E ELEMENTOS DA APLICAÇÃO
+   ========================================================================== */
+
+/* --- ESTRUTURA DA PÁGINA --- */
+
+.pagina-container {
+  padding: 1rem 1.5rem;
+}
+
+.pagina-cabecalho {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--cor-borda-suave);
+}
+
+.pagina-cabecalho h1 {
+  margin: 0;
+  font-size: 1.75rem;
+  color: #1e293b; /* Tom de azul escuro acinzentado */
+}
+
+/* --- CARDS DE CONTEÚDO --- */
+
+.conteudo-card {
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow:
+    0 4px 6px -1px rgb(0 0 0 / 0.1),
+    0 2px 4px -2px rgb(0 0 0 / 0.1);
+  padding: 1.5rem;
+}
+
+/* --- BOTÕES PADRÃO --- */
+
+.botao {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.botao-primario {
+  background-color: var(--cor-primaria);
+  color: white;
+}
+.botao-primario:hover {
+  background-color: #1e40af; /* Azul um pouco mais escuro */
+}
+
+.botao-acao {
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  background-color: transparent;
+  border: 1px solid var(--cor-borda-suave);
+  color: var(--cor-texto-padrao);
+}
+.botao-acao:hover {
+  background-color: var(--cor-fundo-pagina);
+  border-color: #cbd5e1;
+}
+
+.botao-acao.excluir:hover {
+  background-color: #fee2e2;
+  border-color: #fca5a5;
+  color: #b91c1c;
+}
+
+/* --- TABELAS --- */
+
+.tabela-padrao {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.tabela-padrao thead {
+  background-color: #f8fafc; /* Fundo do cabeçalho da tabela */
+}
+
+.tabela-padrao th {
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  color: #475569;
+  border-bottom: 2px solid var(--cor-borda-suave);
+}
+
+.tabela-padrao td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--cor-borda-suave);
+  color: #334155;
+}
+
+.tabela-padrao tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.tabela-padrao tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+.acoes-tabela {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* --- ESTILOS PARA FILTROS DE PÁGINAS DE IMPRESSÃO --- */
+
+.card-filtros {
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow:
+    0 4px 6px -1px rgb(0 0 0 / 0.1),
+    0 2px 4px -2px rgb(0 0 0 / 0.1);
+  padding: 1.5rem;
+  display: flex;
+  align-items: flex-end;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.card-filtros .campo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.card-filtros .campo label {
+  font-weight: 500;
+  font-size: 0.9rem;
+  color: var(--cor-texto-padrao);
+}
+
+.card-filtros .campo input[type='month'],
+.card-filtros .campo input[type='text'] {
+  padding: 8px 12px;
+  border: 1px solid var(--cor-borda-suave);
+  border-radius: 6px;
+  font-size: 1rem;
+  min-width: 200px; /* Garante uma largura mínima */
+}
+
+/* ==========================================================================
+   [ADICIONADO] UTILITÁRIOS GLOBAIS DE IMPRESSÃO
+   ========================================================================== */
+@media print {
+  /**
+   * Classe para esconder completamente qualquer elemento e seus filhos da impressão.
+   * O uso de !important é justificado aqui para garantir que esta regra de
+   * utilidade global sobreponha quaisquer estilos de componentes específicos.
+   */
+  .no-print {
+    display: none !important;
+  }
+
+  /**
+   * Garante que o conteúdo principal do layout não tenha preenchimentos
+   * que restrinjam a área de impressão.
+   */
+  .conteudo-principal {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Reseta estilos básicos para uma impressão limpa */
+  body {
+    background-color: #fff;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Evita sombras de caixas na impressão */
+  .conteudo-card {
+    box-shadow: none;
+    border: 1px solid #ccc;
+  }
+}

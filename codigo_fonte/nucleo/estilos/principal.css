@@ -1,0 +1,20 @@
+/* Definições de estilo globais para a aplicação */
+
+:root {
+  --altura-cabecalho: 85px;
+  --cor-primaria: #0d47a1; /* Azul principal */
+  --cor-texto-primario: #ffffff;
+  --cor-borda-hover: #42a5f5; /* Azul claro para hover/destaques */
+  --cor-fundo-pagina: #f4f6f9; /* Cinza claro de fundo */
+  --cor-texto-padrao: #334155;
+  --cor-borda-suave: #e2e8f0;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--cor-fundo-pagina);
+  color: var(--cor-texto-padrao);
+}

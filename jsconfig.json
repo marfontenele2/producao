@@ -1,7 +1,8 @@
 {
   "compilerOptions": {
+    "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./codigo_fonte/*"]
     }
   },
   "exclude": ["node_modules", "dist"]

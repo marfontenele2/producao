@@ -1,0 +1,65 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "equipes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ubsId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "nome",
+          "order": "ASCENDING"
+        }
+      ],
+      "density": "SPARSE_ALL"
+    },
+    {
+      "collectionGroup": "mural",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "destinatarios",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "criadoEm",
+          "order": "DESCENDING"
+        }
+      ],
+      "density": "SPARSE_ALL"
+    },
+    {
+      "collectionGroup": "producaoIndividualAcs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "equipeId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "competencia",
+          "order": "ASCENDING"
+        }
+      ],
+      "density": "SPARSE_ALL"
+    },
+    {
+      "collectionGroup": "respostas",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "enviadoPorUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "enviadoEm",
+          "order": "ASCENDING"
+        }
+      ],
+      "density": "SPARSE_ALL"
+    }
+  ],
+  "fieldOverrides": []
+}
