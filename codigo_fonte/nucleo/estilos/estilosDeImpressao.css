@@ -1,0 +1,64 @@
+/*
+  Arquivo: estilosDeImpressao.css
+  Objetivo: Definir um padrão de estilo para todos os relatórios
+  quando o usuário usar a função de imprimir do navegador (Ctrl+P).
+*/
+
+@media print {
+  /* Esconde elementos de interface que não fazem sentido na impressão */
+  .no-print,
+  .pagina-cabecalho,
+  .botoes-cabecalho,
+  .abas-navegacao,
+  .rodape-tabela,
+  .modal-overlay,
+  button,
+  a.botao {
+    display: none !important;
+  }
+
+  /* Garante que o conteúdo principal use toda a página */
+  body,
+  .pagina-container,
+  .conteudo-card {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Otimiza cores para economizar tinta e melhorar a legibilidade */
+  * {
+    background: transparent !important;
+    color: black !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  /* Garante que as tabelas fiquem bem formatadas no papel */
+  .tabela-padrao {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .tabela-padrao th,
+  .tabela-padrao td {
+    border: 1px solid #ddd !important;
+    padding: 8px;
+  }
+
+  /* Garante que os títulos do relatório sejam visíveis */
+  .cabecalho-relatorio h2,
+  .cabecalho-relatorio p {
+    page-break-after: avoid; /* Evita que o cabeçalho fique separado do conteúdo */
+    margin-bottom: 1rem;
+  }
+
+  /* Remove o fundo de inputs para mostrar apenas o valor */
+  input,
+  select {
+    border: none !important;
+    background-color: white !important;
+  }
+}

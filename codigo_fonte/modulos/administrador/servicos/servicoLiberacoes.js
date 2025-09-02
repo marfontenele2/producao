@@ -1,5 +1,7 @@
+// codigo_fonte/modulos/administrador/servicos/servicoLiberacoes.js
+
 import { db } from '@/nucleo/configuracao/firebase'
-import { doc, onSnapshot, setDoc } from 'firebase/firestore'
+import { doc, onSnapshot, setDoc, getDoc } from 'firebase/firestore' // Adicionado getDoc
 
 const NOME_COLECAO = 'boletimLiberacoes'
 
@@ -7,6 +9,22 @@ const NOME_COLECAO = 'boletimLiberacoes'
  * Serviço para gerenciar quais testes/marcas estão liberados para cada competência.
  */
 export const servicoLiberacoes = {
+  /**
+   * @JSDoc_NOVO
+   * Busca os dados de liberação de uma competência específica uma única vez.
+   * Ideal para telas de formulário onde não precisamos de atualizações em tempo real.
+   * @param {string} competencia - A competência no formato 'AAAA-MM'.
+   * @returns {Promise<object>} Os dados de liberação encontrados ou um objeto padrão.
+   */
+  async buscarLiberacoes(competencia) {
+    if (!competencia) {
+      return { testesLiberados: {} }
+    }
+    const docRef = doc(db, NOME_COLECAO, competencia)
+    const docSnap = await getDoc(docRef)
+    return docSnap.exists() ? docSnap.data() : { testesLiberados: {} }
+  },
+
   /**
    * Monitora as liberações de uma competência específica em tempo real.
    * @param {string} competencia - A competência no formato 'AAAA-MM'.
@@ -32,9 +50,7 @@ export const servicoLiberacoes = {
    */
   salvarLiberacoes(competencia, dadosLiberacao) {
     const docRef = doc(db, NOME_COLECAO, competencia)
-    return setDoc(docRef, {
-      ...dadosLiberacao,
-      atualizadoEm: new Date(),
-    })
+    // Usamos merge: true para garantir que não sobrescrevemos campos não relacionados
+    return setDoc(docRef, dadosLiberacao, { merge: true })
   },
 }

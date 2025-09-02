@@ -7,19 +7,21 @@ import {
   arrayUnion,
   getDoc,
   setDoc,
+  getDocs, // ADICIONADO
 } from 'firebase/firestore'
 
 const NOME_COLECAO = 'boletimTestes'
 
-/**
- * Serviço para gerenciar o catálogo de testes rápidos e suas marcas comerciais.
- */
 export const servicoTestes = {
-  /**
-   * Monitora o catálogo de testes em tempo real.
-   * @param {function(Array<object>): void} callback - Função que recebe a lista de testes.
-   * @returns {import("firebase/firestore").Unsubscribe}
-   */
+  // ADICIONADO: Função para buscar o catálogo uma única vez.
+  // Essencial para a página de Entrada de Estoque.
+  async buscarTodos() {
+    const q = collection(db, NOME_COLECAO)
+    const snapshot = await getDocs(q)
+    const testes = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+    return testes.sort((a, b) => a.nome.localeCompare(b.nome))
+  },
+
   monitorarTestes(callback) {
     const q = collection(db, NOME_COLECAO)
     return onSnapshot(q, (snapshot) => {
@@ -29,12 +31,6 @@ export const servicoTestes = {
     })
   },
 
-  /**
-   * Adiciona uma nova marca comercial a um teste existente.
-   * @param {string} idTeste - O ID do documento do teste (ex: 'HIV').
-   * @param {object} dadosMarca - Objeto com os dados da marca (ex: { id: 'uuid', nome: 'Marca X' }).
-   * @returns {Promise<void>}
-   */
   adicionarMarca(idTeste, dadosMarca) {
     const docRef = doc(db, NOME_COLECAO, idTeste)
     return updateDoc(docRef, {
@@ -42,16 +38,14 @@ export const servicoTestes = {
     })
   },
 
-  /**
-   * Remove uma marca comercial de um teste.
-   * @param {string} idTeste - O ID do documento do teste.
-   * @param {object} marcaParaRemover - O objeto da marca a ser removido.
-   * @returns {Promise<void>}
-   */
+  async atualizarTeste(idTeste, dadosParaAtualizar) {
+    const docRef = doc(db, NOME_COLECAO, idTeste)
+    return updateDoc(docRef, dadosParaAtualizar)
+  },
+
   async removerMarca(idTeste, marcaParaRemover) {
     const docRef = doc(db, NOME_COLECAO, idTeste)
     const docSnap = await getDoc(docRef)
-
     if (docSnap.exists()) {
       const dadosAtuais = docSnap.data()
       const marcasAtuais = dadosAtuais.marcas || []
@@ -60,10 +54,6 @@ export const servicoTestes = {
     }
   },
 
-  /**
-   * Garante que os testes principais existam no Firestore.
-   * Executar uma vez ou para garantir a integridade.
-   */
   async inicializarTestesPadrao() {
     const testesFixos = [
       { id: 'HIV', nome: 'HIV' },

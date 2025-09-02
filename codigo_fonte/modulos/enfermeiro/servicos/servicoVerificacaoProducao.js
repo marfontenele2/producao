@@ -1,33 +1,27 @@
 import { db } from '@/nucleo/configuracao/firebase'
 import { doc, getDoc } from 'firebase/firestore'
 
-// Mapeia a chave do módulo para o nome da coleção no Firestore
+// MODIFICADO: Mapeamento agora inclui coleções mensais e semanais
 const mapeamentoColecoes = {
+  // Mensal
   adolescente: 'producaoAdolescente',
   suplementos: 'producaoSuplementos',
   educacaoPermanente: 'producaoEducacaoPermanente',
   bpa: 'producaoBpa',
   gestantes: 'producaoGestantes',
   boletimTestesRapidos: 'boletimDados',
+  // Semanal
+  mdda: 'producaoMDDA',
+  notificacaoSemanal: 'producaoNotificacaoSemanal',
+  sarampo: 'producaoSarampo',
 }
 
-/**
- * Serviço para verificar a existência de produções salvas.
- */
 export const servicoVerificacaoProducao = {
-  /**
-   * Verifica se uma produção mensal foi entregue.
-   * @param {string} competencia - A competência no formato 'YYYY-MM'.
-   * @param {string} equipeId - O ID da equipe.
-   * @param {string} tipoProducao - A chave da produção (ex: 'adolescente', 'suplementos').
-   * @returns {Promise<boolean>} Retorna true se a produção foi entregue, false caso contrário.
-   */
   async verificarEntregaMensal(competencia, equipeId, tipoProducao) {
     const colecao = mapeamentoColecoes[tipoProducao]
     if (!colecao || !competencia || !equipeId) {
       return false
     }
-
     try {
       const docId = `${competencia}_${equipeId}`
       const docRef = doc(db, colecao, docId)
@@ -36,16 +30,11 @@ export const servicoVerificacaoProducao = {
       if (!docSnap.exists()) {
         return false
       }
-
-      // Lógica especial: para gestantes e boletim, "entregue" significa "finalizado".
-      // Para os outros, a simples existência do documento é suficiente.
       if (tipoProducao === 'gestantes' || tipoProducao === 'boletimTestesRapidos') {
         const dados = docSnap.data()
-        // Acessa o campo 'finalizado' dentro do objeto 'registro' ou no topo do documento.
         const registro = dados.registro || dados
         return registro?.finalizado === true
       }
-
       return docSnap.exists()
     } catch (error) {
       console.error(`Erro ao verificar entrega para ${tipoProducao}:`, error)
@@ -53,13 +42,30 @@ export const servicoVerificacaoProducao = {
     }
   },
 
+  // ===================================================================
+  // === FUNÇÃO IMPLEMENTADA ===
+  // ===================================================================
   /**
-   * (Placeholder) Verifica se uma produção semanal foi entregue.
-   * A lógica exata dependerá de como os dados semanais são armazenados.
-   * @returns {Promise<boolean>}
+   * Verifica se uma produção semanal foi entregue.
+   * @param {string} semanaKey - A chave da semana (ex: '2025-36').
+   * @param {string} equipeId - O ID da equipe.
+   * @param {string} tipoProducao - A chave da produção (ex: 'mdda').
+   * @returns {Promise<boolean>} Retorna true se a produção foi entregue.
    */
-  async verificarEntregaSemanal(/* ...parametros da semana... */) {
-    // TODO: Implementar a lógica de verificação para produções semanais
-    return false
+  async verificarEntregaSemanal(semanaKey, equipeId, tipoProducao) {
+    const colecao = mapeamentoColecoes[tipoProducao]
+    if (!colecao || !semanaKey || !equipeId) {
+      return false
+    }
+    try {
+      const docId = `${semanaKey}_${equipeId}`
+      const docRef = doc(db, colecao, docId)
+      const docSnap = await getDoc(docRef)
+      // Para os módulos semanais, a simples existência do documento confirma a entrega.
+      return docSnap.exists()
+    } catch (error) {
+      console.error(`Erro ao verificar entrega semanal para ${tipoProducao}:`, error)
+      return false
+    }
   },
 }

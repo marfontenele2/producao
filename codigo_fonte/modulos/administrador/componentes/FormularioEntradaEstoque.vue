@@ -1,53 +1,97 @@
 <template>
-  <div class="modal-overlay" @click.self="$emit('fechar')">
+  <div class="modal-backdrop" @click.self="fechar">
     <div class="modal-container">
       <header class="modal-cabecalho">
         <h2>Registrar Entrada no Estoque</h2>
-        <button class="botao-fechar" @click="$emit('fechar')">&times;</button>
+        <button class="botao-fechar" @click="fechar">
+          <X :size="24" />
+        </button>
       </header>
+
       <main class="modal-corpo">
-        <form @submit.prevent="submeter">
-          <div class="grupo-formulario">
-            <label for="teste">Tipo de Teste</label>
-            <select id="teste" v-model="form.testeId" required @change="form.marcaId = ''">
-              <option disabled value="">Selecione o tipo</option>
-              <option v-for="teste in catalogoTestes" :key="teste.id" :value="teste.id">
-                {{ teste.nome }}
-              </option>
-            </select>
-          </div>
-          <div class="grupo-formulario">
-            <label for="marca">Marca/Fornecedor</label>
-            <select id="marca" v-model="form.marcaId" required :disabled="!form.testeId">
-              <option disabled value="">Selecione a marca</option>
-              <option v-for="marca in marcasFiltradas" :key="marca.id" :value="marca.id">
-                {{ marca.nome }}
-              </option>
-            </select>
-          </div>
-          <div class="grupo-formulario">
-            <label for="lote">Lote</label>
-            <input id="lote" v-model="form.lote" type="text" required />
-          </div>
-          <div class="grupo-formulario">
-            <label for="validade">Data de Validade</label>
-            <input id="validade" v-model="form.validade" type="date" required />
-          </div>
-          <div class="grupo-formulario">
-            <label for="quantidade">Quantidade Recebida</label>
-            <input
-              id="quantidade"
-              v-model.number="form.quantidadeInicial"
-              type="number"
-              min="1"
-              required
-            />
+        <form id="form-entrada-estoque" @submit.prevent="submeterFormulario">
+          <div class="grid-formulario">
+            <div class="campo">
+              <label for="tipo-teste">Tipo de Teste</label>
+              <select id="tipo-teste" v-model="lote.testeId" @change="aoSelecionarTeste" required>
+                <option :value="null" disabled>Selecione um tipo de teste</option>
+                <option v-for="teste in props.catalogoTestes" :key="teste.id" :value="teste.id">
+                  {{ teste.nome }}
+                </option>
+              </select>
+            </div>
+            <div class="campo">
+              <label for="marca-comercial">Marca Comercial</label>
+              <select
+                id="marca-comercial"
+                v-model="lote.marcaId"
+                @change="aoSelecionarMarca"
+                :disabled="!lote.testeId"
+                required
+              >
+                <option :value="null" disabled>Selecione uma marca</option>
+                <option v-for="marca in marcasDisponiveis" :key="marca.id" :value="marca.id">
+                  {{ marca.nome }}
+                </option>
+              </select>
+            </div>
+
+            <div class="campo">
+              <label for="codigo-lote">Código do Lote</label>
+              <input
+                type="text"
+                id="codigo-lote"
+                v-model.trim="lote.codigoLote"
+                required
+                placeholder="Ex: A1B2C3D4"
+              />
+            </div>
+            <div class="campo">
+              <label for="data-validade">Data de Validade</label>
+              <input type="date" id="data-validade" v-model="lote.dataValidade" required />
+            </div>
+
+            <div class="campo">
+              <label for="qtd-caixa">Quantidade de Testes por Caixa</label>
+              <input
+                type="number"
+                id="qtd-caixa"
+                min="1"
+                v-model.number="lote.quantidadePorCaixa"
+                required
+              />
+            </div>
+            <div class="campo">
+              <label for="num-caixas">Nº de Caixas Recebidas</label>
+              <input
+                type="number"
+                id="num-caixas"
+                min="1"
+                v-model.number="lote.numeroCaixas"
+                required
+              />
+            </div>
           </div>
         </form>
       </main>
+
       <footer class="modal-rodape">
-        <button class="botao-cancelar" @click="$emit('fechar')">Cancelar</button>
-        <button class="botao-salvar" @click="submeter">Registrar Entrada</button>
+        <div class="total-calculado">
+          <span>Total a ser adicionado:</span>
+          <strong>{{ quantidadeTotalInicial }} testes</strong>
+        </div>
+        <div class="botoes-acao">
+          <button class="botao botao-acao" @click="fechar">Cancelar</button>
+          <button
+            class="botao botao-primario"
+            type="submit"
+            form="form-entrada-estoque"
+            :disabled="!isFormularioValido"
+          >
+            <Save :size="18" />
+            Registrar Entrada
+          </button>
+        </div>
       </footer>
     </div>
   </div>
@@ -55,70 +99,129 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import { useStoreNotificacoes } from '@/nucleo/notificacoes/storeNotificacoes'
+import { useStoreUsuario } from '@/nucleo/autenticacao/storeUsuario'
+import { X, Save } from 'lucide-vue-next'
 
 const props = defineProps({
-  catalogoTestes: { type: Array, required: true },
+  catalogoTestes: {
+    type: Array,
+    required: true,
+  },
 })
+
 const emit = defineEmits(['fechar', 'salvar'])
 
-const form = ref({
-  testeId: '',
-  marcaId: '',
-  lote: '',
-  validade: '',
-  quantidadeInicial: null,
+const storeNotificacoes = useStoreNotificacoes()
+const storeUsuario = useStoreUsuario()
+
+const criarLoteInicial = () => ({
+  testeId: null,
+  testeNome: '',
+  marcaId: null,
+  marcaNome: '',
+  codigoLote: '',
+  dataValidade: '',
+  quantidadePorCaixa: null,
+  numeroCaixas: null,
 })
 
-const marcasFiltradas = computed(() => {
-  if (!form.value.testeId) return []
-  const testeSelecionado = props.catalogoTestes.find((t) => t.id === form.value.testeId)
-  return testeSelecionado?.marcas || []
+const lote = ref(criarLoteInicial())
+
+const marcasDisponiveis = computed(() => {
+  if (!lote.value.testeId || !props.catalogoTestes) return []
+  const testeSelecionado = props.catalogoTestes.find((t) => t.id === lote.value.testeId)
+  return testeSelecionado ? testeSelecionado.marcas : []
 })
 
-function submeter() {
-  const testeSelecionado = props.catalogoTestes.find((t) => t.id === form.value.testeId)
-  const marcaSelecionada = testeSelecionado?.marcas.find((m) => m.id === form.value.marcaId)
+const quantidadeTotalInicial = computed(() => {
+  const porCaixa = lote.value.quantidadePorCaixa || 0
+  const numCaixas = lote.value.numeroCaixas || 0
+  return porCaixa * numCaixas
+})
 
-  if (testeSelecionado && marcaSelecionada) {
-    const dadosCompletos = {
-      ...form.value,
-      testeNome: testeSelecionado.nome,
-      marcaNome: marcaSelecionada.nome,
-    }
-    emit('salvar', dadosCompletos)
+const isFormularioValido = computed(() => {
+  return (
+    Object.values(lote.value).every((val) => val !== null && val !== '') &&
+    quantidadeTotalInicial.value > 0
+  )
+})
+
+function aoSelecionarTeste() {
+  lote.value.marcaId = null
+  lote.value.marcaNome = ''
+  const testeSelecionado = props.catalogoTestes.find((t) => t.id === lote.value.testeId)
+  if (testeSelecionado) {
+    lote.value.testeNome = testeSelecionado.nome
   }
+}
+
+function aoSelecionarMarca() {
+  const marcaSelecionada = marcasDisponiveis.value.find((m) => m.id === lote.value.marcaId)
+  if (marcaSelecionada) {
+    lote.value.marcaNome = marcaSelecionada.nome
+  }
+}
+
+function submeterFormulario() {
+  if (!isFormularioValido.value) {
+    storeNotificacoes.mostrarNotificacao({
+      mensagem: 'Por favor, preencha todos os campos.',
+      tipo: 'alerta',
+    })
+    return
+  }
+  const dadosLoteParaSalvar = {
+    testeId: lote.value.testeId,
+    testeNome: lote.value.testeNome,
+    marcaId: lote.value.marcaId,
+    marcaNome: lote.value.marcaNome,
+    lote: lote.value.codigoLote,
+    validade: lote.value.dataValidade,
+    quantidadeInicial: quantidadeTotalInicial.value,
+    // --- CORREÇÃO ADICIONADA AQUI ---
+    quantidadePorCaixa: lote.value.quantidadePorCaixa,
+    numeroCaixas: lote.value.numeroCaixas,
+    // ---------------------------------
+    registradoPor: storeUsuario.usuario.uid,
+  }
+  emit('salvar', dadosLoteParaSalvar)
+}
+
+function fechar() {
+  emit('fechar')
 }
 </script>
 
 <style scoped>
-/* Estilos do modal reutilizados */
-.modal-overlay {
+/* Estilos permanecem inalterados */
+.modal-backdrop {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
+  width: 100vw;
+  height: 100vh;
   background-color: rgba(0, 0, 0, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 2000;
+  z-index: 1000;
 }
 .modal-container {
-  background: white;
-  padding: 1.5rem;
+  background-color: white;
   border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
   width: 90%;
-  max-width: 500px;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  max-width: 700px;
+  display: flex;
+  flex-direction: column;
 }
 .modal-cabecalho {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding: 1rem 1.5rem;
   border-bottom: 1px solid var(--cor-borda-suave);
-  padding-bottom: 1rem;
-  margin-bottom: 1rem;
 }
 .modal-cabecalho h2 {
   margin: 0;
@@ -127,53 +230,49 @@ function submeter() {
 .botao-fechar {
   background: none;
   border: none;
-  font-size: 2rem;
   cursor: pointer;
-  color: #888;
+  color: #64748b;
 }
 .modal-corpo {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  padding: 1.5rem;
 }
-.grupo-formulario {
+.grid-formulario {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+.campo {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
-.grupo-formulario label {
+.campo label {
   font-weight: 500;
   font-size: 0.9rem;
 }
-.grupo-formulario input,
-.grupo-formulario select {
-  padding: 0.75rem;
+.campo input,
+.campo select {
+  padding: 10px 12px;
   border: 1px solid var(--cor-borda-suave);
   border-radius: 6px;
   font-size: 1rem;
 }
 .modal-rodape {
   display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  background-color: #f8fafc;
   border-top: 1px solid var(--cor-borda-suave);
-  padding-top: 1rem;
-  margin-top: 1.5rem;
+  border-radius: 0 0 8px 8px;
 }
-.botao-cancelar,
-.botao-salvar {
-  padding: 0.75rem 1.5rem;
-  border-radius: 6px;
-  border: none;
-  cursor: pointer;
-  font-weight: 500;
+.total-calculado strong {
+  color: var(--cor-primaria);
+  font-weight: bold;
+  margin-left: 8px;
 }
-.botao-cancelar {
-  background-color: #e2e8f0;
-  color: var(--cor-texto-padrao);
-}
-.botao-salvar {
-  background-color: var(--cor-primaria);
-  color: white;
+.botoes-acao {
+  display: flex;
+  gap: 0.5rem;
 }
 </style>

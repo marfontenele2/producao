@@ -1,3 +1,5 @@
+// codigo_fonte/nucleo/rotas/principal.js
+
 import { createRouter, createWebHistory } from 'vue-router'
 import PrincipalLayout from '@/nucleo/layouts/PrincipalLayout.vue'
 import PaginaLogin from '@/nucleo/autenticacao/PaginaLogin.vue'
@@ -15,8 +17,10 @@ import PaginaGerenciarTestes from '@/modulos/administrador/paginas/PaginaGerenci
 import PaginaGerenciarLiberacoes from '@/modulos/administrador/paginas/PaginaGerenciarLiberacoes.vue'
 import PaginaRelatoriosBoletim from '@/modulos/administrador/paginas/PaginaRelatoriosBoletim.vue'
 import PaginaControleEstoque from '@/modulos/administrador/paginas/PaginaControleEstoque.vue'
+import PaginaEntradaEstoque from '@/modulos/administrador/paginas/PaginaEntradaEstoque.vue'
 import PaginaSaudeSistema from '@/modulos/administrador/paginas/PaginaSaudeSistema.vue'
 import PaginaLogAtividades from '@/modulos/administrador/paginas/PaginaLogAtividades.vue'
+import PaginaRelatorioSisloglab from '@/modulos/administrador/paginas/PaginaRelatorioSisloglab.vue'
 
 // Import das páginas do Enfermeiro
 const PaginaDiagnosticoPrazos = () =>
@@ -45,6 +49,23 @@ const PaginaEmConstrucao = () => import('@/modulos/enfermeiro/paginas/PaginaEmCo
 const PaginaBoletim = () => import('@/modulos/enfermeiro/paginas/PaginaBoletim.vue')
 const PaginaPreencherBoletim = () =>
   import('@/modulos/enfermeiro/paginas/PaginaPreencherBoletim.vue')
+const PaginaImpressaoBoletim = () =>
+  import('@/modulos/enfermeiro/paginas/PaginaImpressaoBoletim.vue')
+const PaginaSolicitarInsumos = () =>
+  import('@/modulos/enfermeiro/paginas/PaginaSolicitarInsumos.vue')
+
+// === PÁGINAS SEMANAIS ===
+const PaginaMDDA = () => import('@/modulos/enfermeiro/paginas/PaginaMDDA.vue')
+const PaginaNotificacaoSemanal = () =>
+  import('@/modulos/enfermeiro/paginas/PaginaNotificacaoSemanal.vue')
+const PaginaSarampo = () => import('@/modulos/enfermeiro/paginas/PaginaSarampo.vue')
+
+// === PÁGINAS DE IMPRESSÃO SEMANAIS ===
+const PaginaImpressaoMDDA = () => import('@/modulos/enfermeiro/paginas/PaginaImpressaoMDDA.vue')
+const PaginaImpressaoNotificacao = () =>
+  import('@/modulos/enfermeiro/paginas/PaginaImpressaoNotificacao.vue')
+const PaginaImpressaoSarampo = () =>
+  import('@/modulos/enfermeiro/paginas/PaginaImpressaoSarampo.vue')
 
 const routes = [
   {
@@ -62,7 +83,7 @@ const routes = [
         name: 'Home',
         component: PaginaCarregando,
       },
-      // [CORRIGIDO] Rotas do Administrador restauradas
+      // --- ROTAS DO ADMINISTRADOR ---
       {
         path: 'admin/dashboard',
         name: 'DashboardAdmin',
@@ -118,6 +139,12 @@ const routes = [
         meta: { roles: ['Administrador'] },
       },
       {
+        path: 'admin/estoque/entrada',
+        name: 'AdminEntradaEstoque',
+        component: PaginaEntradaEstoque,
+        meta: { roles: ['Administrador'], titulo: 'Entrada de Lote no Estoque' },
+      },
+      {
         path: 'admin/saude-sistema',
         name: 'AdminSaudeSistema',
         component: PaginaSaudeSistema,
@@ -129,8 +156,13 @@ const routes = [
         component: PaginaLogAtividades,
         meta: { roles: ['Administrador'] },
       },
-
-      // Rotas do Enfermeiro
+      {
+        path: 'admin/relatorios/sisloglab',
+        name: 'AdminRelatorioSisloglab',
+        component: PaginaRelatorioSisloglab,
+        meta: { roles: ['Administrador'], titulo: 'Relatório Consolidado SISLOGLAB' },
+      },
+      // --- ROTAS DO ENFERMEIRO ---
       {
         path: 'enfermeiro/producao-mensal',
         name: 'EnfermeiroProducaoMensal',
@@ -180,6 +212,12 @@ const routes = [
         meta: { roles: ['Enfermeiro'] },
       },
       {
+        path: 'enfermeiro/impressoes/boletim-testes-rapidos',
+        name: 'EnfermeiroImpressaoBoletim',
+        component: PaginaImpressaoBoletim,
+        meta: { roles: ['Enfermeiro'], titulo: 'Impressão do Boletim de Testes' },
+      },
+      {
         path: 'enfermeiro/impressoes/adolescente',
         name: 'EnfermeiroImpressaoAdolescente',
         component: PaginaImpressaoAdolescente,
@@ -210,28 +248,40 @@ const routes = [
         meta: { roles: ['Enfermeiro'] },
       },
       {
+        path: 'enfermeiro/impressoes/mdda',
+        name: 'EnfermeiroImpressaoMDDA',
+        component: PaginaImpressaoMDDA,
+        meta: { roles: ['Enfermeiro'], titulo: 'Impressão do Relatório MDDA' },
+      },
+      {
+        path: 'enfermeiro/impressoes/notificacao-semanal',
+        name: 'EnfermeiroImpressaoNotificacao',
+        component: PaginaImpressaoNotificacao,
+        meta: { roles: ['Enfermeiro'], titulo: 'Impressão da Notificação Semanal' },
+      },
+      {
         path: 'enfermeiro/producao-mensal/boletim',
         name: 'EnfermeiroBoletim',
-        component: PaginaEmConstrucao,
+        component: PaginaBoletim,
         meta: { roles: ['Enfermeiro'] },
       },
       {
         path: 'enfermeiro/producao-semanal/mdda',
         name: 'EnfermeiroMDDA',
-        component: PaginaEmConstrucao,
-        meta: { roles: ['Enfermeiro'] },
+        component: PaginaMDDA,
+        meta: { roles: ['Enfermeiro'], titulo: 'Produção MDDA' },
       },
       {
         path: 'enfermeiro/producao-semanal/notificacao',
         name: 'EnfermeiroNotificacaoSemanal',
-        component: PaginaEmConstrucao,
-        meta: { roles: ['Enfermeiro'] },
+        component: PaginaNotificacaoSemanal,
+        meta: { roles: ['Enfermeiro'], titulo: 'Notificação Semanal' },
       },
       {
         path: 'enfermeiro/producao-semanal/sarampo',
         name: 'EnfermeiroSarampo',
-        component: PaginaEmConstrucao,
-        meta: { roles: ['Enfermeiro'] },
+        component: PaginaSarampo,
+        meta: { roles: ['Enfermeiro'], titulo: 'Controle de Sarampo/Rubéola' },
       },
       {
         path: 'enfermeiro/mural',
@@ -246,17 +296,22 @@ const routes = [
         meta: { roles: ['Administrador', 'Enfermeiro'] },
       },
       {
-        path: 'enfermeiro/producao-mensal/boletim',
-        name: 'EnfermeiroBoletim',
-        component: PaginaBoletim,
-        meta: { roles: ['Enfermeiro'] },
-      },
-      // [ADICIONADO] Nova rota para a página de preenchimento com parâmetro
-      {
-        path: 'enfermeiro/producao-mensal/boletim/:testeId',
+        path: 'enfermeiro/producao-mensal/boletim/:competencia/:testeId',
         name: 'EnfermeiroPreencherBoletim',
         component: PaginaPreencherBoletim,
         meta: { roles: ['Enfermeiro'] },
+      },
+      {
+        path: 'enfermeiro/insumos/solicitar',
+        name: 'EnfermeiroSolicitarInsumos',
+        component: PaginaSolicitarInsumos,
+        meta: { roles: ['Enfermeiro'], titulo: 'Solicitar Insumos' },
+      },
+      {
+        path: 'enfermeiro/impressoes/sarampo',
+        name: 'EnfermeiroImpressaoSarampo',
+        component: PaginaImpressaoSarampo,
+        meta: { roles: ['Enfermeiro'], titulo: 'Impressão do Controle de Sarampo' },
       },
     ],
   },

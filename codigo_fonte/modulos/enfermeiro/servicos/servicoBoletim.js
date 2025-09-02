@@ -1,15 +1,20 @@
 import { db } from '@/nucleo/configuracao/firebase'
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
+import {
+  doc,
+  getDoc,
+  setDoc,
+  serverTimestamp,
+  collection,
+  query,
+  where,
+  getDocs,
+} from 'firebase/firestore'
 
 const NOME_COLECAO = 'boletimDados'
 
 const criarIdDocumento = (competencia, equipeId) => `${competencia}_${equipeId}`
 
 export const servicoBoletim = {
-  /**
-   * Busca os dados do boletim para uma competência e equipe.
-   * @returns {Promise<object|null>}
-   */
   async buscarDados(competencia, equipeId) {
     const docRef = doc(db, NOME_COLECAO, criarIdDocumento(competencia, equipeId))
     const docSnap = await getDoc(docRef)
@@ -17,9 +22,20 @@ export const servicoBoletim = {
   },
 
   /**
-   * Salva os dados do boletim.
-   * @param {object} dadosBoletim - O objeto completo com os dados do boletim.
+   * @JSDoc
+   * [NOVA FUNÇÃO] Busca todos os boletins de uma determinada competência.
+   * @param {string} competencia - A competência no formato 'AAAA-MM'.
+   * @returns {Promise<Array<object>>} Uma lista com os dados dos boletins.
    */
+  async buscarTodosOsBoletinsDaCompetencia(competencia) {
+    const q = query(collection(db, NOME_COLECAO), where('competencia', '==', competencia))
+    const querySnapshot = await getDocs(q)
+    if (querySnapshot.empty) {
+      return []
+    }
+    return querySnapshot.docs.map((doc) => doc.data())
+  },
+
   async salvarDados(competencia, equipeId, ubsId, usuarioId, dadosBoletim) {
     const docRef = doc(db, NOME_COLECAO, criarIdDocumento(competencia, equipeId))
     const payload = {

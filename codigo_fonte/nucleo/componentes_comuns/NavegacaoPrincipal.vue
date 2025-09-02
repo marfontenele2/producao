@@ -2,19 +2,13 @@
   <nav class="navegacao-principal">
     <ul v-if="storeUsuario.ehAdmin">
       <li @mouseenter="abrirMenu('inicio')" @mouseleave="fecharMenu">
-        <a @click.prevent="toggleMenu('inicio')">
-          <Home :size="18" />
-          <span>Início</span>
-        </a>
+        <a @click.prevent="toggleMenu('inicio')"><Home :size="18" /><span>Início</span></a>
         <ul class="submenu" v-show="menuAberto === 'inicio'">
           <li><router-link :to="{ name: 'DashboardAdmin' }">Dashboard</router-link></li>
         </ul>
       </li>
       <li @mouseenter="abrirMenu('cadastros')" @mouseleave="fecharMenu">
-        <a>
-          <Users :size="18" />
-          <span>Cadastros</span>
-        </a>
+        <a><Users :size="18" /><span>Cadastros</span></a>
         <ul class="submenu" v-show="menuAberto === 'cadastros'">
           <li><router-link :to="{ name: 'AdminGerenciarUbs' }">Gerenciar UBS</router-link></li>
           <li>
@@ -36,6 +30,9 @@
               >Gerenciar Liberações</router-link
             >
           </li>
+          <li>
+            <router-link :to="{ name: 'AdminRelatorioSisloglab' }">Relatório SISLOGLAB</router-link>
+          </li>
           <li><router-link :to="{ name: 'AdminRelatoriosBoletim' }">Relatórios</router-link></li>
         </ul>
       </li>
@@ -55,10 +52,7 @@
         </ul>
       </li>
       <li @mouseenter="abrirMenu('configuracoes')" @mouseleave="fecharMenu">
-        <a>
-          <Settings :size="18" />
-          <span>Configurações</span>
-        </a>
+        <a><Settings :size="18" /><span>Configurações</span></a>
         <ul class="submenu" v-show="menuAberto === 'configuracoes'">
           <li>
             <router-link :to="{ name: 'AdminControlePrazos' }">Prazos do Sistema</router-link>
@@ -69,11 +63,6 @@
 
     <ul v-if="storeUsuario.ehEnfermeiro">
       <li>
-        <router-link :to="{ name: 'EnfermeiroMural' }">
-          <Megaphone :size="18" /><span>Mural</span>
-        </router-link>
-      </li>
-      <li>
         <router-link :to="{ name: 'EnfermeiroProducaoMensal' }">
           <Calendar :size="18" /><span>Produção Mensal</span>
         </router-link>
@@ -81,6 +70,11 @@
       <li>
         <router-link :to="{ name: 'EnfermeiroProducaoSemanal' }">
           <CalendarClock :size="18" /><span>Produção Semanal</span>
+        </router-link>
+      </li>
+      <li>
+        <router-link :to="{ name: 'EnfermeiroSolicitarInsumos' }">
+          <ShoppingBasket :size="18" /><span>Insumos</span>
         </router-link>
       </li>
       <li>
@@ -93,6 +87,7 @@
 </template>
 
 <script setup>
+// Script permanece o mesmo, apenas o import do Megaphone não é mais necessário
 import { ref } from 'vue'
 import { useStoreUsuario } from '@/nucleo/autenticacao/storeUsuario'
 import {
@@ -102,10 +97,10 @@ import {
   FlaskConical,
   Boxes,
   ShieldCheck,
-  Megaphone,
   Calendar,
   CalendarClock,
   Printer,
+  ShoppingBasket,
 } from 'lucide-vue-next'
 
 const storeUsuario = useStoreUsuario()
@@ -116,13 +111,11 @@ function abrirMenu(nomeMenu) {
   clearTimeout(menuTimeout)
   menuAberto.value = nomeMenu
 }
-
 function fecharMenu() {
   menuTimeout = setTimeout(() => {
     menuAberto.value = null
   }, 200)
 }
-
 function toggleMenu(nomeMenu) {
   menuAberto.value = menuAberto.value === nomeMenu ? null : nomeMenu
 }

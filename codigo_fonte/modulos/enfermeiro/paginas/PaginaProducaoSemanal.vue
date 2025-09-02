@@ -11,7 +11,7 @@
           :key="modulo.nome"
           class="card-producao"
           @click="navegarParaProducao(modulo.rota, modulo.status)"
-          :class="{ 'card-bloqueado': modulo.status !== 'Aberto' }"
+          :class="{ 'card-bloqueado': modulo.status !== 'Aberto' && modulo.status !== 'Entregue' }"
         >
           <div class="card-conteudo">
             <span class="card-titulo">{{ modulo.nome }}</span>
@@ -34,66 +34,108 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { servicoPrazosSemanais } from '@/modulos/administrador/servicos/servicoPrazosSemanais'
 import IndicadorStatusProducao from '@/modulos/enfermeiro/componentes/IndicadorStatusProducao.vue'
+// ===================================================================
+// === NOVOS IMPORTS NECESSÁRIOS ===
+// ===================================================================
+import { useStoreUsuario } from '@/nucleo/autenticacao/storeUsuario'
+import { servicoVerificacaoProducao } from '../servicos/servicoVerificacaoProducao'
+// ===================================================================
 
 const router = useRouter()
 const carregando = ref(true)
 const modulosComStatus = ref([])
+// ADICIONADO storeUsuario para pegar o equipeId
+const storeUsuario = useStoreUsuario()
+let unsubPrazos = null
 
+// MODIFICADO: Adicionada a 'chaveVerificacao' para conectar com o serviço de status
 const modulosSemanais = [
-  { nome: 'MDDA', rota: 'EnfermeiroMDDA', chavePrazo: 'mdda' },
+  { nome: 'MDDA', rota: 'EnfermeiroMDDA', chavePrazo: 'mdda', chaveVerificacao: 'mdda' },
   {
     nome: 'Notificação Semanal',
     rota: 'EnfermeiroNotificacaoSemanal',
     chavePrazo: 'notificacaoSemanal',
+    chaveVerificacao: 'notificacaoSemanal',
   },
-  { nome: 'Sarampo', rota: 'EnfermeiroSarampo', chavePrazo: 'sarampo' },
+  {
+    nome: 'Sarampo',
+    rota: 'EnfermeiroSarampo',
+    chavePrazo: 'sarampo',
+    chaveVerificacao: 'sarampo',
+  },
 ]
 
+// ADICIONADO: Função para obter a chave da semana, para usar na verificação
+function getWeekKey(date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7))
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
+  const weekNo = Math.ceil(((d - yearStart) / 86400000 + 1) / 7)
+  return `${d.getUTCFullYear()}-${String(weekNo).padStart(2, '0')}`
+}
+
 onMounted(() => {
-  servicoPrazosSemanais.monitorarPrazos(async (prazos) => {
-    const modulosProcessados = []
+  unsubPrazos = servicoPrazosSemanais.monitorarPrazos(async (prazos) => {
+    // MODIFICADO: A função de callback agora é assíncrona para esperar a verificação de status
     const hoje = new Date()
-    const diaDaSemanaHoje = hoje.getDay() // Domingo = 0, Segunda = 1, etc.
+    const diaDaSemanaHoje = hoje.getDay()
+    const semanaKey = getWeekKey(hoje)
+    const equipeId = storeUsuario.usuario?.equipeId
 
-    for (const modulo of modulosSemanais) {
-      const prazoInfo = prazos[modulo.chavePrazo] || {}
-      // CORREÇÃO APLICADA AQUI: usar 'abertura' e 'fechamento'
-      const diaAbertura = parseInt(prazoInfo.abertura, 10)
-      const diaFechamento = parseInt(prazoInfo.fechamento, 10)
+    // Usamos Promise.all para buscar o status de todos os módulos em paralelo
+    const modulosProcessados = await Promise.all(
+      modulosSemanais.map(async (modulo) => {
+        const prazoInfo = prazos[modulo.chavePrazo] || {}
+        const diaAbertura = parseInt(prazoInfo.abertura, 10)
+        const diaFechamento = parseInt(prazoInfo.fechamento, 10)
 
-      const foiEntregue = false
+        // LÓGICA DE STATUS ATUALIZADA
+        const foiEntregue = await servicoVerificacaoProducao.verificarEntregaSemanal(
+          semanaKey,
+          equipeId,
+          modulo.chaveVerificacao,
+        )
 
-      let status = 'Aguardando'
-      if (foiEntregue) {
-        status = 'Entregue'
-      } else if (!isNaN(diaAbertura) && !isNaN(diaFechamento)) {
-        if (diaDaSemanaHoje >= diaAbertura && diaDaSemanaHoje <= diaFechamento) {
-          status = 'Aberto'
-        } else if (diaDaSemanaHoje > diaFechamento) {
-          status = 'Encerrado'
+        let status = 'Fechado' // Status padrão se não estiver dentro do prazo
+        if (foiEntregue) {
+          status = 'Entregue'
+        } else if (!isNaN(diaAbertura) && !isNaN(diaFechamento)) {
+          if (diaDaSemanaHoje >= diaAbertura && diaDaSemanaHoje <= diaFechamento) {
+            status = 'Aberto'
+          } else if (diaDaSemanaHoje > diaFechamento) {
+            status = 'Encerrado'
+          } else if (diaDaSemanaHoje < diaAbertura) {
+            status = 'Pendente'
+          }
         }
-      }
 
-      const diasDaSemana = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
+        const diasDaSemana = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
 
-      modulosProcessados.push({
-        ...modulo,
-        status,
-        dataAbertura: !isNaN(diaAbertura) ? diasDaSemana[diaAbertura] : 'N/D',
-        dataFechamento: !isNaN(diaFechamento) ? diasDaSemana[diaFechamento] : 'N/D',
-      })
-    }
+        return {
+          ...modulo,
+          status,
+          dataAbertura: !isNaN(diaAbertura) ? diasDaSemana[diaAbertura] : 'N/D',
+          dataFechamento: !isNaN(diaFechamento) ? diasDaSemana[diaFechamento] : 'N/D',
+        }
+      }),
+    )
+
     modulosComStatus.value = modulosProcessados
     carregando.value = false
   })
 })
 
+onUnmounted(() => {
+  if (unsubPrazos) unsubPrazos()
+})
+
 function navegarParaProducao(nomeRota, status) {
-  if (status !== 'Aberto') {
+  // MODIFICADO: Permite clicar no card se já foi entregue (para visualizar/editar)
+  if (status !== 'Aberto' && status !== 'Entregue') {
     alert(`Acesso bloqueado. Status da produção: ${status}.`)
     return
   }
@@ -102,7 +144,7 @@ function navegarParaProducao(nomeRota, status) {
 </script>
 
 <style scoped>
-/* Estilos são idênticos ao da PaginaProducaoMensal.vue */
+/* Estilos permanecem os mesmos */
 .grid-cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));

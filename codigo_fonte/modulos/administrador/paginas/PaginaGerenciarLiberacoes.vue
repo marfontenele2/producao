@@ -45,72 +45,104 @@
 import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { servicoTestes } from '../servicos/servicoTestes.js'
 import { servicoLiberacoes } from '../servicos/servicoLiberacoes.js'
+import { useStoreNotificacoes } from '@/nucleo/notificacoes/storeNotificacoes'
 import { Save } from 'lucide-vue-next'
 
 const competenciaSelecionada = ref(new Date().toISOString().slice(0, 7))
 const carregando = ref(true)
 const catalogo = ref([])
 const liberacoesAtuais = ref({})
+const storeNotificacoes = useStoreNotificacoes()
 
 let unsubTestes = null
-let unsubLiberacoes = null
+
+async function carregarDadosDaCompetencia() {
+  carregando.value = true
+  try {
+    const dados = await servicoLiberacoes.buscarLiberacoes(competenciaSelecionada.value)
+    liberacoesAtuais.value = dados.testesLiberados || {}
+  } catch (error) {
+    console.error('Erro ao buscar liberações:', error)
+    storeNotificacoes.mostrarNotificacao({
+      mensagem: 'Falha ao carregar as liberações.',
+      tipo: 'erro',
+    })
+    liberacoesAtuais.value = {}
+  } finally {
+    carregando.value = false
+  }
+}
 
 onMounted(() => {
   unsubTestes = servicoTestes.monitorarTestes((lista) => {
     catalogo.value = lista
   })
+  carregarDadosDaCompetencia()
 })
 
-watch(
-  competenciaSelecionada,
-  (novaCompetencia) => {
-    if (unsubLiberacoes) unsubLiberacoes()
-    carregando.value = true
-
-    unsubLiberacoes = servicoLiberacoes.monitorarLiberacoes(novaCompetencia, (dados) => {
-      liberacoesAtuais.value = dados.testesLiberados || {}
-      carregando.value = false
-    })
-  },
-  { immediate: true },
-)
+watch(competenciaSelecionada, carregarDadosDaCompetencia)
 
 onUnmounted(() => {
   if (unsubTestes) unsubTestes()
-  if (unsubLiberacoes) unsubLiberacoes()
 })
 
 function isMarcaLiberada(idTeste, idMarca) {
-  return liberacoesAtuais.value[idTeste]?.includes(idMarca) || false
+  return !!liberacoesAtuais.value[idTeste]?.[idMarca]
 }
 
+/**
+ * @JSDoc_MODIFICADO
+ * Refatorado para usar spread syntax (...) para garantir imutabilidade e reatividade.
+ * Em vez de clonar o objeto inteiro, criamos uma nova referência para o objeto principal
+ * e para o sub-objeto do teste que está sendo modificado.
+ */
 function toggleMarca(idTeste, idMarca) {
-  if (!liberacoesAtuais.value[idTeste]) {
-    liberacoesAtuais.value[idTeste] = []
+  console.group(`[DEBUG ADMIN] Toggle Marca: ${idTeste} - ${idMarca}`)
+  console.log('Estado ANTES da alteração:', JSON.parse(JSON.stringify(liberacoesAtuais.value)))
+
+  // Cria uma cópia do sub-objeto (marcas) do teste específico
+  const marcasDoTesteAtualizado = { ...(liberacoesAtuais.value[idTeste] || {}) }
+
+  if (marcasDoTesteAtualizado[idMarca]) {
+    delete marcasDoTesteAtualizado[idMarca]
+  } else {
+    marcasDoTesteAtualizado[idMarca] = true
   }
 
-  const index = liberacoesAtuais.value[idTeste].indexOf(idMarca)
-  if (index > -1) {
-    liberacoesAtuais.value[idTeste].splice(index, 1)
-  } else {
-    liberacoesAtuais.value[idTeste].push(idMarca)
+  // Cria uma nova referência para o objeto principal, garantindo a reatividade
+  liberacoesAtuais.value = {
+    ...liberacoesAtuais.value,
+    [idTeste]: marcasDoTesteAtualizado,
   }
+
+  console.log('Estado DEPOIS da alteração:', JSON.parse(JSON.stringify(liberacoesAtuais.value)))
+  console.groupEnd()
 }
 
 async function salvar() {
+  carregando.value = true
   try {
     await servicoLiberacoes.salvarLiberacoes(competenciaSelecionada.value, {
       testesLiberados: liberacoesAtuais.value,
     })
-    alert('Liberações salvas com sucesso!')
+    storeNotificacoes.mostrarNotificacao({
+      mensagem: 'Liberações salvas com sucesso!',
+      tipo: 'sucesso',
+    })
   } catch (error) {
     console.error('Erro ao salvar liberações:', error)
-    alert('Falha ao salvar as liberações.')
+    storeNotificacoes.mostrarNotificacao({
+      mensagem: 'Falha ao salvar as liberações.',
+      tipo: 'erro',
+    })
+  } finally {
+    carregando.value = false
   }
 }
 </script>
 
 <style scoped>
+/* Estilos permanecem inalterados */
 .seletor-competencia {
   margin-bottom: 2rem;
   padding-bottom: 1.5rem;
@@ -126,7 +158,6 @@ async function salvar() {
   border: 1px solid var(--cor-borda-suave);
   font-size: 1rem;
 }
-
 .grid-testes {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));

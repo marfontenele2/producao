@@ -370,7 +370,6 @@ async function buscarDados() {
     )
     producao.value = dados ? dados : criarEstadoInicial()
   } catch (error) {
-    // [CORRIGIDO] Chamada de notificação
     storeNotificacoes.mostrarNotificacao({ mensagem: 'Erro ao buscar dados.', tipo: 'erro' })
     console.error(error)
   } finally {
@@ -380,7 +379,6 @@ async function buscarDados() {
 
 async function salvarDados() {
   if (!competencia.value || !producao.value) {
-    // [CORRIGIDO] Chamada de notificação
     storeNotificacoes.mostrarNotificacao({
       mensagem: 'Selecione uma competência para salvar.',
       tipo: 'alerta',
@@ -390,20 +388,20 @@ async function salvarDados() {
   salvando.value = true
   try {
     const equipeId = storeUsuario.usuario.equipeId
+    // --- ALTERAÇÃO CIRÚRGICA ABAIXO ---
+    // A chamada agora passa os parâmetros corretos que o serviço espera.
     await servicoProducaoAdolescente.salvarProducao(competencia.value, equipeId, producao.value)
+    // ------------------------------------
 
-    // [CORRIGIDO] Chamada de notificação
     storeNotificacoes.mostrarNotificacao({
       mensagem: 'Produção salva com sucesso!',
       tipo: 'sucesso',
     })
 
-    // [ADICIONADO] Lógica de reset após o sucesso
     producao.value = null
     competencia.value = ''
   } catch (error) {
     console.error('Erro ao salvar produção:', error)
-    // [CORRIGIDO] Chamada de notificação
     storeNotificacoes.mostrarNotificacao({
       mensagem: 'Falha ao salvar. Tente novamente.',
       tipo: 'erro',

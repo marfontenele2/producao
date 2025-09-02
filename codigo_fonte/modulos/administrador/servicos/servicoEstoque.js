@@ -1,3 +1,5 @@
+// C:\producao\codigo_fonte\modulos\administrador\servicos\servicoEstoque.js
+
 import { db } from '@/nucleo/configuracao/firebase'
 import {
   collection,
@@ -6,17 +8,15 @@ import {
   query,
   orderBy,
   addDoc,
-  updateDoc,
   serverTimestamp,
-  runTransaction, // <-- Importação para transações seguras
+  runTransaction,
+  getDoc,
 } from 'firebase/firestore'
 
 const NOME_COLECAO_ESTOQUE = 'estoqueTestesRapidos'
 const NOME_COLECAO_MOVIMENTACOES = 'movimentacoesEstoque'
+const NOME_COLECAO_AJUSTES = 'ajustesEstoque'
 
-/**
- * Serviço para gerenciar o estoque de testes rápidos.
- */
 export const servicoEstoque = {
   monitorarEstoque(callback) {
     const q = query(collection(db, NOME_COLECAO_ESTOQUE), orderBy('criadoEm', 'desc'))
@@ -35,16 +35,6 @@ export const servicoEstoque = {
     return addDoc(collection(db, NOME_COLECAO_ESTOQUE), dadosParaSalvar)
   },
 
-  /**
-   * --- FUNÇÃO NOVA E MELHORADA ---
-   * Registra uma saída de estoque de forma transacional, garantindo a consistência dos dados.
-   * @param {object} payload - Dados da operação de saída.
-   * @param {object} payload.lote - O objeto completo do lote de estoque.
-   * @param {number} payload.quantidadeSaida - A quantidade a ser removida.
-   * @param {object} payload.equipeDestino - O objeto da equipe de destino.
-   * @param {string} payload.idUsuarioAdmin - UID do administrador que realizou a operação.
-   * @returns {Promise<void>}
-   */
   async registrarSaidaDeLote({ lote, quantidadeSaida, equipeDestino, idUsuarioAdmin }) {
     const loteRef = doc(db, NOME_COLECAO_ESTOQUE, lote.id)
     const movimentacaoRef = doc(collection(db, NOME_COLECAO_MOVIMENTACOES))
@@ -52,28 +42,62 @@ export const servicoEstoque = {
     return runTransaction(db, async (transaction) => {
       const loteDoc = await transaction.get(loteRef)
       if (!loteDoc.exists()) {
-        throw 'Erro: O lote de estoque não foi encontrado.'
+        throw new Error('Erro: O lote de estoque não foi encontrado.')
       }
-
       const quantidadeAtual = loteDoc.data().quantidadeAtual
       if (quantidadeSaida > quantidadeAtual) {
-        throw 'Erro: Quantidade de saída maior que o estoque atual.'
+        throw new Error('Erro: Quantidade de saída maior que o estoque atual.')
       }
-
       const novaQuantidade = quantidadeAtual - quantidadeSaida
       transaction.update(loteRef, { quantidadeAtual: novaQuantidade })
 
-      transaction.set(movimentacaoRef, {
+      const dadosMovimentacao = {
         tipo: 'saida',
         loteId: lote.id,
+        testeId: lote.testeId,
+        marcaId: lote.marcaId,
         testeNome: lote.testeNome,
         marcaNome: lote.marcaNome,
-        loteCodigo: lote.lote,
+        // ===================================================================
+        // === A CORREÇÃO ESTÁ AQUI ===
+        // Altere de 'lote.lote' para 'lote.codigoLote'
+        // ===================================================================
+        loteCodigo: lote.codigoLote,
+        // ===================================================================
         quantidade: quantidadeSaida,
         equipeDestinoId: equipeDestino.id,
         equipeDestinoNome: equipeDestino.nome,
         ubsId: equipeDestino.ubsId,
         realizadoPor: idUsuarioAdmin,
+        realizadoEm: serverTimestamp(),
+      }
+      transaction.set(movimentacaoRef, dadosMovimentacao)
+    })
+  },
+
+  async ajustarEstoque({ loteId, quantidadeAnterior, quantidadeNova, motivo, adminId }) {
+    const loteRef = doc(db, NOME_COLECAO_ESTOQUE, loteId)
+    const ajusteRef = doc(collection(db, NOME_COLECAO_AJUSTES))
+
+    return runTransaction(db, async (transaction) => {
+      const loteDoc = await transaction.get(loteRef)
+      if (!loteDoc.exists()) {
+        throw new Error('Lote não encontrado. A operação foi cancelada.')
+      }
+      const dadosLote = loteDoc.data()
+      transaction.update(loteRef, { quantidadeAtual: quantidadeNova })
+
+      transaction.set(ajusteRef, {
+        loteId,
+        testeId: dadosLote.testeId,
+        marcaId: dadosLote.marcaId,
+        testeNome: dadosLote.testeNome,
+        marcaNome: dadosLote.marcaNome,
+        quantidadeAnterior,
+        quantidadeNova,
+        diferenca: quantidadeNova - quantidadeAnterior,
+        motivo,
+        realizadoPor: adminId,
         realizadoEm: serverTimestamp(),
       })
     })
