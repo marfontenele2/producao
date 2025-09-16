@@ -1,7 +1,6 @@
 import { db } from '@/nucleo/configuracao/firebase'
 import { doc, getDoc } from 'firebase/firestore'
 
-// MODIFICADO: Mapeamento agora inclui coleções mensais e semanais
 const mapeamentoColecoes = {
   // Mensal
   adolescente: 'producaoAdolescente',
@@ -10,6 +9,8 @@ const mapeamentoColecoes = {
   bpa: 'producaoBpa',
   gestantes: 'producaoGestantes',
   boletimTestesRapidos: 'boletimDados',
+  scnes: 'scnes',
+  saudeMental: 'saudeMental',
   // Semanal
   mdda: 'producaoMDDA',
   notificacaoSemanal: 'producaoNotificacaoSemanal',
@@ -23,18 +24,51 @@ export const servicoVerificacaoProducao = {
       return false
     }
     try {
-      const docId = `${competencia}_${equipeId}`
-      const docRef = doc(db, colecao, docId)
+      // Para a maioria dos módulos, o ID do documento é uma combinação da competência e da equipe
+      let idDoDocumento = `${competencia}_${equipeId}`
+
+      // Exceções: Saúde Mental usa apenas o ID da equipe como chave do documento
+      if (tipoProducao === 'saudeMental') {
+        idDoDocumento = equipeId
+      }
+
+      const docRef = doc(db, colecao, idDoDocumento)
       const docSnap = await getDoc(docRef)
 
       if (!docSnap.exists()) {
         return false
       }
+
+      const dados = docSnap.data()
+
+      // ===================================================================
+      // === CORREÇÃO ESTÁ AQUI: Variáveis com nomes inválidos foram corrigidas
+      // ===================================================================
+      // Lógica específica para determinar se a produção foi "entregue"
+      if (tipoProducao === 'scnes') {
+        // A lógica de verificação do SCNES foi mantida, mas com nomes de variáveis corrigidos.
+        const idDocumentoScnes = `${competencia}_${equipeId}`
+        const docRefScnes = doc(db, colecao, idDocumentoScnes)
+        const docSnapScnes = await getDoc(docRefScnes)
+        if (!docSnapScnes.exists()) return false
+        const dadosScnes = docSnapScnes.data()
+        return dadosScnes.profissionais && dadosScnes.profissionais.length > 0
+      }
+      // ===================================================================
+
+      if (tipoProducao === 'saudeMental') {
+        return (
+          dados.acompanhamentos &&
+          dados.acompanhamentos[competencia] &&
+          Object.keys(dados.acompanhamentos[competencia]).length > 0
+        )
+      }
+
       if (tipoProducao === 'gestantes' || tipoProducao === 'boletimTestesRapidos') {
-        const dados = docSnap.data()
         const registro = dados.registro || dados
         return registro?.finalizado === true
       }
+
       return docSnap.exists()
     } catch (error) {
       console.error(`Erro ao verificar entrega para ${tipoProducao}:`, error)
@@ -42,9 +76,6 @@ export const servicoVerificacaoProducao = {
     }
   },
 
-  // ===================================================================
-  // === FUNÇÃO IMPLEMENTADA ===
-  // ===================================================================
   /**
    * Verifica se uma produção semanal foi entregue.
    * @param {string} semanaKey - A chave da semana (ex: '2025-36').
@@ -61,7 +92,6 @@ export const servicoVerificacaoProducao = {
       const docId = `${semanaKey}_${equipeId}`
       const docRef = doc(db, colecao, docId)
       const docSnap = await getDoc(docRef)
-      // Para os módulos semanais, a simples existência do documento confirma a entrega.
       return docSnap.exists()
     } catch (error) {
       console.error(`Erro ao verificar entrega semanal para ${tipoProducao}:`, error)

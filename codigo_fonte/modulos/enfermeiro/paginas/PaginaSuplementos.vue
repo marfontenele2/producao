@@ -25,7 +25,7 @@
       <p>Carregando dados da competência...</p>
     </div>
 
-    <form v-if="!carregando && competencia" @submit.prevent="salvarDados">
+    <form v-if="!carregando && dados" @submit.prevent="salvarDados">
       <div class="conteudo-card secao-formulario">
         <h3 class="titulo-secao">1- Crianças de 4 a 24 meses</h3>
         <table class="tabela-padrao">
@@ -378,10 +378,33 @@ const storeUsuario = useStoreUsuario()
 const storeNotificacoes = useStoreNotificacoes()
 
 const competencia = ref('')
+// MODIFICADO: 'dados' agora começa com um objeto válido e não mais 'null'
 const dados = ref(null)
 const carregando = ref(false)
 const salvando = ref(false)
 
+// ADICIONADO: Função para criar a estrutura de dados vazia
+const criarEstadoInicial = () => ({
+  criancas: {
+    xaropeFerroso: { entrega1: 0, entrega2: 0, entrega3: 0, entrega4: 0, entrega5: 0 },
+  },
+  gestantes: {
+    xaropeFerroso: { entrega1: 0, entrega2: 0, entrega3: 0, entrega4: 0, entrega5: 0 },
+    comprimidoFerroso: { entrega1: 0, entrega2: 0, entrega3: 0, entrega4: 0, entrega5: 0 },
+    acidoFolico: { entrega1: 0, entrega2: 0, entrega3: 0, entrega4: 0, entrega5: 0 },
+  },
+  posParto: {
+    xaropeFerroso: { entrega1: 0, entrega2: 0, entrega3: 0 },
+    comprimidoFerroso: { entrega1: 0, entrega2: 0, entrega3: 0 },
+  },
+  perdas: {
+    xaropeFerroso: { vencimento: 0, extravio: 0, danificado: 0, outros: 0 },
+    comprimidoFerroso: { vencimento: 0, extravio: 0, danificado: 0, outros: 0 },
+    acidoFolico: { vencimento: 0, extravio: 0, danificado: 0, outros: 0 },
+  },
+})
+
+// MODIFICADO: Função 'buscarDados' agora usa a estrutura inicial
 async function buscarDados() {
   if (!competencia.value) {
     dados.value = null
@@ -390,10 +413,13 @@ async function buscarDados() {
   carregando.value = true
   try {
     const equipeId = storeUsuario.usuario.equipeId
-    dados.value = await servicoSuplementos.buscarDados(competencia.value, equipeId)
+    const dadosSalvos = await servicoSuplementos.buscarDados(competencia.value, equipeId)
+    // Se encontrar dados salvos, usa. Senão, cria um novo a partir do modelo.
+    dados.value = dadosSalvos ? dadosSalvos : criarEstadoInicial()
   } catch (error) {
-    storeNotificacoes.mostrarNotificacao('Erro ao buscar dados.', 'erro')
+    storeNotificacoes.mostrarNotificacao({ mensagem: 'Erro ao buscar dados.', tipo: 'erro' })
     console.error(error)
+    dados.value = criarEstadoInicial() // Garante que não ficará nulo em caso de erro
   } finally {
     carregando.value = false
   }
@@ -401,7 +427,10 @@ async function buscarDados() {
 
 async function salvarDados() {
   if (!competencia.value || !dados.value) {
-    storeNotificacoes.mostrarNotificacao('Selecione uma competência e preencha os dados.', 'alerta')
+    storeNotificacoes.mostrarNotificacao({
+      mensagem: 'Selecione uma competência e preencha os dados.',
+      tipo: 'alerta',
+    })
     return
   }
   salvando.value = true
@@ -409,9 +438,9 @@ async function salvarDados() {
     const equipeId = storeUsuario.usuario.equipeId
     const usuarioId = storeUsuario.usuario.uid
     await servicoSuplementos.salvarDados(competencia.value, equipeId, usuarioId, dados.value)
-    storeNotificacoes.mostrarNotificacao('Dados salvos com sucesso!', 'sucesso')
+    storeNotificacoes.mostrarNotificacao({ mensagem: 'Dados salvos com sucesso!', tipo: 'sucesso' })
   } catch (error) {
-    storeNotificacoes.mostrarNotificacao('Erro ao salvar os dados.', 'erro')
+    storeNotificacoes.mostrarNotificacao({ mensagem: 'Erro ao salvar os dados.', tipo: 'erro' })
     console.error(error)
   } finally {
     salvando.value = false
@@ -420,6 +449,7 @@ async function salvarDados() {
 </script>
 
 <style scoped>
+/* Estilos permanecem os mesmos */
 .filtros-card {
   display: flex;
   align-items: flex-end;

@@ -16,6 +16,29 @@
       "density": "SPARSE_ALL"
     },
     {
+      "collectionGroup": "estoqueTestesRapidos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "marcaId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "testeId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "dataValidade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "quantidadeAtual",
+          "order": "ASCENDING"
+        }
+      ],
+      "density": "SPARSE_ALL"
+    },
+    {
       "collectionGroup": "mural",
       "queryScope": "COLLECTION",
       "fields": [
@@ -46,6 +69,21 @@
       "density": "SPARSE_ALL"
     },
     {
+      "collectionGroup": "producaoSarampo",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "equipeId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "semanaKey",
+          "order": "ASCENDING"
+        }
+      ],
+      "density": "SPARSE_ALL"
+    },
+    {
       "collectionGroup": "respostas",
       "queryScope": "COLLECTION",
       "fields": [
@@ -55,6 +93,36 @@
         },
         {
           "fieldPath": "enviadoEm",
+          "order": "ASCENDING"
+        }
+      ],
+      "density": "SPARSE_ALL"
+    },
+    {
+      "collectionGroup": "solicitacoesEstoque",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "equipeId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "solicitadoEm",
+          "order": "DESCENDING"
+        }
+      ],
+      "density": "SPARSE_ALL"
+    },
+    {
+      "collectionGroup": "solicitacoesEstoque",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "solicitadoEm",
           "order": "ASCENDING"
         }
       ],

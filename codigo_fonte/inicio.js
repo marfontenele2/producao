@@ -6,9 +6,7 @@ import router from './nucleo/rotas/principal.js'
 import { useStoreUsuario } from './nucleo/autenticacao/storeUsuario'
 
 import './nucleo/estilos/principal.css'
-// --- ADIÇÃO CIRÚRGICA ABAIXO ---
 import './nucleo/estilos/elementos-comuns.css'
-// -------------------------
 
 const app = createApp(Aplicacao)
 const pinia = createPinia()
@@ -16,7 +14,9 @@ const pinia = createPinia()
 app.use(pinia)
 
 const storeUsuario = useStoreUsuario()
-storeUsuario.init().then(() => {
+
+// MODIFICADO: A função init() agora recebe o 'router' como parâmetro
+storeUsuario.init(router).then(() => {
   app.use(router)
   app.mount('#app')
 })

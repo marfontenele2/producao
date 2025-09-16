@@ -6,19 +6,18 @@ import { servicoTestes } from './servicoTestes'
 // --- FUNÇÕES AUXILIARES PARA CÁLCULO ---
 const paraCaixas = (totalUnidades, unidadesPorCaixa) => {
   if (!unidadesPorCaixa || unidadesPorCaixa <= 0) return 0
-  return Math.ceil(totalUnidades / unidadesPorCaixa) // Arredonda para cima para consumo/ajustes
+  return Math.ceil(totalUnidades / unidadesPorCaixa)
 }
-
 const paraCaixasSaldo = (totalUnidades, unidadesPorCaixa) => {
   if (!unidadesPorCaixa || unidadesPorCaixa <= 0) return 0
-  return Math.floor(totalUnidades / unidadesPorCaixa) // Arredonda para baixo para saldo
+  return Math.floor(totalUnidades / unidadesPorCaixa)
 }
 // -----------------------------------------
 
 export const servicoRelatorios = {
   /**
-   * @JSDoc
-   * Busca os dados brutos de múltiplas coleções para uma dada competência.
+   * @JSDoc_MODIFICADO
+   * Busca os dados brutos de múltiplas coleções, incluindo as SAÍDAS via solicitações.
    * @param {string} competencia - A competência no formato 'AAAA-MM'.
    * @returns {Promise<object>} Objeto com os dados brutos.
    */
@@ -32,26 +31,48 @@ export const servicoRelatorios = {
       where('criadoEm', '>=', inicioMes),
       where('criadoEm', '<=', fimMes),
     )
-    const qMovimentacoes = query(
-      collection(db, 'movimentacoesEstoque'),
-      where('realizadoEm', '>=', inicioMes),
-      where('realizadoEm', '<=', fimMes),
+
+    // ===================================================================
+    // === CORREÇÃO ESTÁ AQUI: Buscando na coleção correta de saídas
+    // ===================================================================
+    const qSolicitacoesAtendidas = query(
+      collection(db, 'solicitacoesEstoque'),
+      where('atendidoEm', '>=', inicioMes),
+      where('atendidoEm', '<=', fimMes),
     )
+    // ===================================================================
+
     const qAjustes = query(
       collection(db, 'ajustesEstoque'),
       where('realizadoEm', '>=', inicioMes),
       where('realizadoEm', '<=', fimMes),
     )
 
-    const [entradasDocs, movimentacoesDocs, ajustesDocs] = await Promise.all([
+    const [entradasDocs, solicitacoesDocs, ajustesDocs] = await Promise.all([
       getDocs(qEntradas),
-      getDocs(qMovimentacoes),
+      getDocs(qSolicitacoesAtendidas),
       getDocs(qAjustes),
     ])
 
+    // Extrai as dispensas de dentro das solicitações
+    const movimentacoesDeSaida = []
+    solicitacoesDocs.docs.forEach((doc) => {
+      const itens = doc.data().itens || []
+      itens.forEach((item) => {
+        const dispensas = item.dispensas || []
+        dispensas.forEach((dispensa) => {
+          movimentacoesDeSaida.push({
+            testeId: item.testeId,
+            marcaId: item.marcaId,
+            quantidade: dispensa.unidadesAtendidas,
+          })
+        })
+      })
+    })
+
     return {
       entradas: entradasDocs.docs.map((doc) => doc.data()),
-      movimentacoes: movimentacoesDocs.docs.map((doc) => doc.data()),
+      movimentacoes: movimentacoesDeSaida, // AGORA CONTÉM AS SAÍDAS CORRETAS
       ajustes: ajustesDocs.docs.map((doc) => doc.data()),
     }
   },
@@ -82,8 +103,8 @@ export const servicoRelatorios = {
 
     // 2. INICIALIZAR ESTRUTURA COM BASE NO CATÁLOGO
     catalogo.forEach((teste) => {
-      teste.marcas.forEach((marca) => {
-        if (!marca.quantidadePorCaixa || marca.quantidadePorCaixa <= 0) return // Ignora marcas sem cadastro correto
+      ;(teste.marcas || []).forEach((marca) => {
+        if (!marca.quantidadePorCaixa || marca.quantidadePorCaixa <= 0) return
 
         const chave = `${teste.id}_${marca.id}`
         dadosProcessados[chave] = {
@@ -91,7 +112,6 @@ export const servicoRelatorios = {
           testeNome: teste.nome,
           marcaNome: marca.nome,
           quantidadePorCaixa: marca.quantidadePorCaixa,
-          // Campos em UNIDADES para cálculo
           saldoInicialUnidades: 0,
           entradasRecebidoUnidades: 0,
           entradasAjusteUnidades: 0,
@@ -109,7 +129,6 @@ export const servicoRelatorios = {
         (d) => d.chave === chave,
       )
       if (dadosSalvosAnterior) {
-        // Converte o saldo final em caixas do mês anterior para unidades
         item.saldoInicialUnidades =
           Number(dadosSalvosAnterior.saldoFinal || 0) * item.quantidadePorCaixa
       }
@@ -121,7 +140,7 @@ export const servicoRelatorios = {
         dadosProcessados[chave].entradasRecebidoUnidades += Number(lote.quantidadeInicial || 0)
       }
     })
-    // Saídas (Consumo)
+    // Saídas (Consumo) - Agora com os dados corretos
     dadosBrutos.movimentacoes.forEach((mov) => {
       const chave = `${mov.testeId}_${mov.marcaId}`
       if (dadosProcessados[chave]) {
@@ -154,7 +173,6 @@ export const servicoRelatorios = {
 
       return {
         ...item,
-        // Valores finais para exibição, convertidos para CAIXAS
         saldoInicial: Number(dadosSalvosAnterior?.saldoFinal || 0),
         saldoFinal: paraCaixasSaldo(saldoFinalUnidades, item.quantidadePorCaixa),
         entradas: {
@@ -165,7 +183,7 @@ export const servicoRelatorios = {
           consumido: paraCaixas(item.saidasConsumidoUnidades, item.quantidadePorCaixa),
           ajuste: paraCaixas(item.saidasAjusteUnidades, item.quantidadePorCaixa),
         },
-        ressuprimento: 'N/D', // Manter lógica de ressuprimento se houver
+        ressuprimento: 'N/D',
       }
     })
   },

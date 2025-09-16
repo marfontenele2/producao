@@ -48,6 +48,9 @@ const modulosMensais = [
   { nome: 'Educação Permanente', chavePrazo: 'educacaoPermanente' },
   { nome: 'Saúde do Adolescente', chavePrazo: 'adolescente' },
   { nome: 'Acompanhamento de Gestantes', chavePrazo: 'gestantes' },
+  { nome: 'SCNES (Cadastro de Profissionais)', chavePrazo: 'scnes' },
+  // ADICIONADO: Nova entrada para o módulo de Saúde Mental
+  { nome: 'Saúde Mental', chavePrazo: 'saudeMental' },
 ]
 
 let unsubscribe = null

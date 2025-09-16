@@ -2,91 +2,99 @@ import { db } from '@/nucleo/configuracao/firebase'
 import {
   collection,
   onSnapshot,
-  query,
-  orderBy,
-  where,
   getDocs,
-  getDoc, // Import adicionado
+  doc,
+  getDoc,
   addDoc,
   updateDoc,
   deleteDoc,
-  doc,
+  query, // ADICIONADO: Import 'query'
+  where, // ADICIONADO: Import 'where'
 } from 'firebase/firestore'
 
-/**
- * Serviço para gerenciar as operações de CRUD para as Equipes de Saúde.
- */
+const NOME_COLECAO = 'equipes'
+
 export const servicoEquipes = {
   /**
-   * Monitora a coleção de equipes em tempo real, ordenando por nome.
-   * @param {function(Array<object>): void} callback - Função que recebe a lista de equipes.
-   * @returns {import("firebase/firestore").Unsubscribe} Função para cancelar o monitoramento.
+   * Busca todas as equipes uma única vez. Ideal para painéis e relatórios.
+   * @returns {Promise<Array<object>>} Uma lista de todas as equipes.
    */
-  monitorarEquipes(callback) {
-    const q = query(collection(db, 'equipes'), orderBy('nome'))
-    return onSnapshot(q, (snapshot) => {
-      const equipes = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
-      callback(equipes)
-    })
-  },
+  async buscarTodas() {
+    const equipesSnap = await getDocs(collection(db, NOME_COLECAO))
+    const ubsPromises = []
+    const equipes = equipesSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
 
-  /**
-   * Busca equipes associadas a uma ou mais UBSs, uma única vez.
-   * @param {Array<string>} idsUbs - Array de IDs das UBS.
-   * @returns {Promise<Array<object>>} Uma lista de equipes.
-   */
-  async buscarEquipesPorUbs(idsUbs) {
-    if (!idsUbs || idsUbs.length === 0) return []
-    const q = query(collection(db, 'equipes'), where('ubsId', 'in', idsUbs), orderBy('nome'))
-    const snapshot = await getDocs(q)
-    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
-  },
-
-  /**
-   * Busca uma única equipe pelo seu ID.
-   * @param {string} idEquipe - O ID da equipe a ser buscada.
-   * @returns {Promise<object|null>} O objeto da equipe ou null se não for encontrada.
-   */
-  async buscarEquipePorId(idEquipe) {
-    if (!idEquipe) return null
-    try {
-      const docRef = doc(db, 'equipes', idEquipe)
-      const docSnap = await getDoc(docRef)
-      if (docSnap.exists()) {
-        return { id: docSnap.id, ...docSnap.data() }
+    // Para cada equipe, busca o nome da UBS correspondente
+    equipes.forEach((equipe) => {
+      if (equipe.ubsId) {
+        ubsPromises.push(getDoc(doc(db, 'ubs', equipe.ubsId)))
       }
-      return null
+    })
+
+    const ubsDocs = await Promise.all(ubsPromises)
+    const ubsMap = new Map()
+    ubsDocs.forEach((doc) => {
+      if (doc.exists()) {
+        ubsMap.set(doc.id, doc.data().nome)
+      }
+    })
+
+    equipes.forEach((equipe) => {
+      if (equipe.ubsId && ubsMap.has(equipe.ubsId)) {
+        equipe.nomeUbs = ubsMap.get(equipe.ubsId)
+      } else {
+        equipe.nomeUbs = 'UBS não encontrada'
+      }
+    })
+
+    return equipes
+  },
+
+  /**
+   * ADICIONADO: Nova função para buscar equipes por UBS.
+   * Essencial para a tela do Gerente.
+   * @param {string} ubsId - O ID da Unidade de Saúde.
+   * @returns {Promise<Array<Object>>} Uma lista de objetos de equipe.
+   */
+  async buscarEquipesPorUbs(ubsId) {
+    if (!ubsId) return []
+    try {
+      const equipesCol = collection(db, NOME_COLECAO)
+      // Cria uma consulta que filtra as equipes pelo campo 'ubsId'
+      const q = query(equipesCol, where('ubsId', '==', ubsId))
+      const querySnapshot = await getDocs(q)
+      const equipes = []
+      querySnapshot.forEach((doc) => {
+        equipes.push({ id: doc.id, ...doc.data() })
+      })
+      // Ordena as equipes por nome antes de retornar
+      return equipes.sort((a, b) => a.nome.localeCompare(b.nome))
     } catch (error) {
-      console.error('Erro ao buscar equipe por ID:', error)
-      return null
+      console.error('Erro ao buscar equipes por UBS:', error)
+      return []
     }
   },
 
   /**
-   * Adiciona uma nova equipe.
-   * @param {object} dadosEquipe - Dados da nova equipe.
-   * @returns {Promise<any>}
+   * Monitora as equipes em tempo real.
+   * @param {function} callback - A função que recebe a lista de equipes.
    */
-  adicionarEquipe(dadosEquipe) {
-    return addDoc(collection(db, 'equipes'), dadosEquipe)
+  monitorarEquipes(callback) {
+    const q = collection(db, NOME_COLECAO)
+    return onSnapshot(q, (snapshot) => {
+      const lista = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+      callback(lista.sort((a, b) => a.nome.localeCompare(b.nome)))
+    })
   },
 
-  /**
-   * Atualiza uma equipe existente.
-   * @param {string} idEquipe - O ID da equipe.
-   * @param {object} dadosEquipe - Novos dados da equipe.
-   * @returns {Promise<void>}
-   */
-  atualizarEquipe(idEquipe, dadosEquipe) {
-    return updateDoc(doc(db, 'equipes', idEquipe), dadosEquipe)
+  // Funções de CRUD (adicionar, atualizar, excluir)
+  adicionarEquipe(dados) {
+    return addDoc(collection(db, NOME_COLECAO), dados)
   },
-
-  /**
-   * Exclui uma equipe.
-   * @param {string} idEquipe - O ID da equipe.
-   * @returns {Promise<void>}
-   */
-  excluirEquipe(idEquipe) {
-    return deleteDoc(doc(db, 'equipes', idEquipe))
+  atualizarEquipe(id, dados) {
+    return updateDoc(doc(db, NOME_COLECAO, id), dados)
+  },
+  excluirEquipe(id) {
+    return deleteDoc(doc(db, NOME_COLECAO, id))
   },
 }

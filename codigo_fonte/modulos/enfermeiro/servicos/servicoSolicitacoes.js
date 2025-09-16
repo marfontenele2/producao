@@ -10,18 +10,14 @@ import {
   doc,
   updateDoc,
   getDocs,
+  runTransaction,
 } from 'firebase/firestore'
 import { useStoreUsuario } from '@/nucleo/autenticacao/storeUsuario'
 
 const NOME_COLECAO = 'solicitacoesEstoque'
+const NOME_COLECAO_ESTOQUE = 'estoqueTestesRapidos'
 
 export const servicoSolicitacoes = {
-  /**
-   * @JSDoc
-   * Cria um novo registro de solicitação de insumos no Firestore.
-   * @param {Array<object>} itensSolicitados - Um array de itens que o enfermeiro está solicitando.
-   * @returns {Promise<void>}
-   */
   async criarSolicitacao(itensSolicitados) {
     const storeUsuario = useStoreUsuario()
     const { uid, nome, equipeId, nomeEquipe, ubsId, nomeUbs } = storeUsuario.usuario
@@ -47,13 +43,6 @@ export const servicoSolicitacoes = {
     return addDoc(collection(db, NOME_COLECAO), dadosParaSalvar)
   },
 
-  /**
-   * @JSDoc
-   * Monitora em tempo real as solicitações feitas por uma equipe específica.
-   * @param {string} equipeId - O ID da equipe para filtrar as solicitações.
-   * @param {function} callback - Função que será chamada com a lista de solicitações.
-   * @returns {import('firebase/firestore').Unsubscribe} Função para parar de ouvir as atualizações.
-   */
   monitorarSolicitacoesPorEquipe(equipeId, callback) {
     const q = query(
       collection(db, NOME_COLECAO),
@@ -66,17 +55,11 @@ export const servicoSolicitacoes = {
     })
   },
 
-  /**
-   * @JSDoc
-   * Monitora em tempo real todas as solicitações com status 'pendente'.
-   * @param {function} callback - Função que será chamada com a lista de solicitações pendentes.
-   * @returns {import('firebase/firestore').Unsubscribe} Função para parar de ouvir as atualizações.
-   */
   monitorarSolicitacoesPendentes(callback) {
     const q = query(
       collection(db, NOME_COLECAO),
-      where('status', '==', 'pendente'),
-      orderBy('solicitadoEm', 'asc'), // Pega as mais antigas primeiro
+      where('status', 'in', ['pendente', 'parcialmente_atendido']), // Agora busca ambos os status
+      orderBy('solicitadoEm', 'asc'),
     )
     return onSnapshot(q, (snapshot) => {
       const solicitacoes = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
@@ -84,13 +67,73 @@ export const servicoSolicitacoes = {
     })
   },
 
-  /**
-   * @JSDoc
-   * Atualiza o status de uma solicitação para 'atendido'.
-   * @param {string} solicitacaoId - O ID da solicitação a ser atualizada.
-   * @param {string} adminId - O UID do administrador que atendeu ao pedido.
-   * @returns {Promise<void>}
-   */
+  async atenderItemSolicitacao({
+    solicitacaoId,
+    itemSolicitado,
+    loteDispensado,
+    caixasDispensadas,
+    adminId,
+  }) {
+    const loteRef = doc(db, NOME_COLECAO_ESTOQUE, loteDispensado.id)
+    const solicitacaoRef = doc(db, NOME_COLECAO, solicitacaoId)
+
+    const unidadesDispensadas = caixasDispensadas * itemSolicitado.quantidadePorCaixa
+
+    return runTransaction(db, async (transaction) => {
+      const loteDoc = await transaction.get(loteRef)
+      const solicitacaoDoc = await transaction.get(solicitacaoRef)
+
+      if (!loteDoc.exists()) throw new Error('Lote de estoque não encontrado.')
+      if (!solicitacaoDoc.exists()) throw new Error('Solicitação não encontrada.')
+
+      const quantidadeAtualLote = loteDoc.data().quantidadeAtual
+      if (unidadesDispensadas > quantidadeAtualLote) {
+        throw new Error('Quantidade solicitada excede o estoque disponível neste lote.')
+      }
+
+      const novaQuantidadeLote = quantidadeAtualLote - unidadesDispensadas
+      transaction.update(loteRef, { quantidadeAtual: novaQuantidadeLote })
+
+      const dadosSolicitacao = solicitacaoDoc.data()
+      const itensAtualizados = dadosSolicitacao.itens.map((item) => {
+        if (item.testeId === itemSolicitado.testeId && item.marcaId === itemSolicitado.marcaId) {
+          const dispensasAnteriores = item.dispensas || []
+          const novaDispensa = {
+            loteId: loteDispensado.id,
+            codigoLote: loteDispensado.codigoLote,
+            caixasAtendidas: caixasDispensadas,
+            unidadesAtendidas: unidadesDispensadas,
+            atendidoPor: adminId,
+            // ===================================================================
+            // === CORREÇÃO: Trocado serverTimestamp() por new Date()
+            // ===================================================================
+            atendidoEm: new Date(),
+            // ===================================================================
+          }
+          return { ...item, dispensas: [...dispensasAnteriores, novaDispensa] }
+        }
+        return item
+      })
+
+      let todosItensAtendidos = true
+      for (const item of itensAtualizados) {
+        const totalAtendido = (item.dispensas || []).reduce((acc, d) => acc + d.caixasAtendidas, 0)
+        if (totalAtendido < item.caixasSolicitadas) {
+          todosItensAtendidos = false
+          break
+        }
+      }
+
+      const novoStatusGeral = todosItensAtendidos ? 'atendido' : 'parcialmente_atendido'
+
+      transaction.update(solicitacaoRef, {
+        itens: itensAtualizados,
+        status: novoStatusGeral,
+        ...(todosItensAtendidos && { atendidoEm: serverTimestamp(), atendidoPor: adminId }),
+      })
+    })
+  },
+
   marcarComoAtendida(solicitacaoId, adminId) {
     const docRef = doc(db, NOME_COLECAO, solicitacaoId)
     return updateDoc(docRef, {
@@ -100,12 +143,6 @@ export const servicoSolicitacoes = {
     })
   },
 
-  /**
-   * @JSDoc
-   * Busca todas as solicitações de uma determinada competência.
-   * @param {string} competencia - A competência no formato 'AAAA-MM'.
-   * @returns {Promise<Array<object>>} Uma lista com os dados das solicitações.
-   */
   async buscarTodasAsSolicitacoesDaCompetencia(competencia) {
     const [ano, mes] = competencia.split('-')
     const inicioMes = new Date(ano, parseInt(mes, 10) - 1, 1)

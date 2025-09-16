@@ -1,14 +1,40 @@
 <template>
   <nav class="navegacao-principal">
     <ul v-if="storeUsuario.ehAdmin">
-      <li @mouseenter="abrirMenu('inicio')" @mouseleave="fecharMenu">
-        <a @click.prevent="toggleMenu('inicio')"><Home :size="18" /><span>Início</span></a>
-        <ul class="submenu" v-show="menuAberto === 'inicio'">
-          <li><router-link :to="{ name: 'DashboardAdmin' }">Dashboard</router-link></li>
+      <li
+        @mouseenter="abrirMenu('producao')"
+        @mouseleave="fecharMenu"
+        :class="{ 'menu-ativo': menuPrincipalAtivo === 'producao' }"
+      >
+        <a @click.prevent="toggleMenu('producao')">
+          <BarChart3 :size="18" />
+          <span>Produção</span>
+        </a>
+        <ul class="submenu" v-show="menuAberto === 'producao'">
+          <li>
+            <router-link :to="{ name: 'AdminAcompanhamentoSemanal' }"
+              >Acompanhamento Semanal</router-link
+            >
+          </li>
+          <li>
+            <router-link :to="{ name: 'AdminAcompanhamentoMensal' }"
+              >Acompanhamento Mensal</router-link
+            >
+          </li>
+          <li>
+            <router-link :to="{ name: 'AdminImpressoes' }">Central de Impressões</router-link>
+          </li>
         </ul>
       </li>
-      <li @mouseenter="abrirMenu('cadastros')" @mouseleave="fecharMenu">
-        <a><Users :size="18" /><span>Cadastros</span></a>
+      <li
+        @mouseenter="abrirMenu('cadastros')"
+        @mouseleave="fecharMenu"
+        :class="{ 'menu-ativo': menuPrincipalAtivo === 'cadastros' }"
+      >
+        <a>
+          <Users :size="18" />
+          <span>Cadastros</span>
+        </a>
         <ul class="submenu" v-show="menuAberto === 'cadastros'">
           <li><router-link :to="{ name: 'AdminGerenciarUbs' }">Gerenciar UBS</router-link></li>
           <li>
@@ -19,7 +45,11 @@
           </li>
         </ul>
       </li>
-      <li @mouseenter="abrirMenu('testes')" @mouseleave="fecharMenu">
+      <li
+        @mouseenter="abrirMenu('testes')"
+        @mouseleave="fecharMenu"
+        :class="{ 'menu-ativo': menuPrincipalAtivo === 'testes' }"
+      >
         <a><FlaskConical :size="18" /><span>Testes Rápidos</span></a>
         <ul class="submenu" v-show="menuAberto === 'testes'">
           <li>
@@ -36,28 +66,108 @@
           <li><router-link :to="{ name: 'AdminRelatoriosBoletim' }">Relatórios</router-link></li>
         </ul>
       </li>
-      <li @mouseenter="abrirMenu('estoque')" @mouseleave="fecharMenu">
+      <li
+        @mouseenter="abrirMenu('estoque')"
+        @mouseleave="fecharMenu"
+        :class="{ 'menu-ativo': menuPrincipalAtivo === 'estoque' }"
+      >
         <a><Boxes :size="18" /><span>Estoque</span></a>
         <ul class="submenu" v-show="menuAberto === 'estoque'">
           <li>
-            <router-link :to="{ name: 'AdminControleEstoque' }">Entrada/Consulta</router-link>
+            <router-link :to="{ name: 'AdminControleEstoque' }">Consultar Estoque</router-link>
+          </li>
+          <li>
+            <router-link :to="{ name: 'AdminGerenciarSolicitacoes' }"
+              >Atender Solicitações</router-link
+            >
           </li>
         </ul>
       </li>
-      <li @mouseenter="abrirMenu('manutencao')" @mouseleave="fecharMenu">
+      <li
+        @mouseenter="abrirMenu('manutencao')"
+        @mouseleave="fecharMenu"
+        :class="{ 'menu-ativo': menuPrincipalAtivo === 'manutencao' }"
+      >
         <a><ShieldCheck :size="18" /><span>Manutenção</span></a>
         <ul class="submenu" v-show="menuAberto === 'manutencao'">
           <li><router-link :to="{ name: 'AdminSaudeSistema' }">Saúde do Sistema</router-link></li>
           <li><router-link :to="{ name: 'AdminLogAtividades' }">Logs de Atividade</router-link></li>
         </ul>
       </li>
-      <li @mouseenter="abrirMenu('configuracoes')" @mouseleave="fecharMenu">
-        <a><Settings :size="18" /><span>Configurações</span></a>
+      <li
+        @mouseenter="abrirMenu('configuracoes')"
+        @mouseleave="fecharMenu"
+        :class="{ 'menu-ativo': menuPrincipalAtivo === 'configuracoes' }"
+      >
+        <a>
+          <Settings :size="18" />
+          <span>Configurações</span>
+        </a>
         <ul class="submenu" v-show="menuAberto === 'configuracoes'">
           <li>
             <router-link :to="{ name: 'AdminControlePrazos' }">Prazos do Sistema</router-link>
           </li>
         </ul>
+      </li>
+    </ul>
+
+    <ul v-if="storeUsuario.ehCoordenador">
+      <li
+        @mouseenter="abrirMenu('producao')"
+        @mouseleave="fecharMenu"
+        :class="{ 'menu-ativo': menuPrincipalAtivo === 'producao' }"
+      >
+        <a @click.prevent="toggleMenu('producao')">
+          <BarChart3 :size="18" />
+          <span>Produção</span>
+        </a>
+        <ul class="submenu" v-show="menuAberto === 'producao'">
+          <li>
+            <router-link :to="{ name: 'AdminAcompanhamentoSemanal' }"
+              >Acompanhamento Semanal</router-link
+            >
+          </li>
+          <li>
+            <router-link :to="{ name: 'AdminAcompanhamentoMensal' }"
+              >Acompanhamento Mensal</router-link
+            >
+          </li>
+          <li>
+            <router-link :to="{ name: 'AdminImpressoes' }">Central de Impressões</router-link>
+          </li>
+        </ul>
+      </li>
+      <li
+        @mouseenter="abrirMenu('estoque')"
+        @mouseleave="fecharMenu"
+        :class="{ 'menu-ativo': menuPrincipalAtivo === 'estoque' }"
+      >
+        <a><Boxes :size="18" /><span>Estoque</span></a>
+        <ul class="submenu" v-show="menuAberto === 'estoque'">
+          <li>
+            <router-link :to="{ name: 'AdminControleEstoque' }">Consultar Estoque</router-link>
+          </li>
+          <li>
+            <router-link :to="{ name: 'AdminGerenciarSolicitacoes' }"
+              >Atender Solicitações</router-link
+            >
+          </li>
+        </ul>
+      </li>
+    </ul>
+
+    <ul v-if="storeUsuario.ehGerente">
+      <li :class="{ 'menu-ativo': menuPrincipalAtivo === 'producao' }">
+        <router-link :to="{ name: 'GerenteProducao' }">
+          <BarChart3 :size="18" />
+          <span>Produção</span>
+        </router-link>
+      </li>
+      <li :class="{ 'menu-ativo': menuPrincipalAtivo === 'impressoes' }">
+        <router-link :to="{ name: 'GerenteImpressoes' }">
+          <Printer :size="18" />
+          <span>Impressão</span>
+        </router-link>
       </li>
     </ul>
 
@@ -87,11 +197,10 @@
 </template>
 
 <script setup>
-// Script permanece o mesmo, apenas o import do Megaphone não é mais necessário
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { useStoreUsuario } from '@/nucleo/autenticacao/storeUsuario'
 import {
-  Home,
   Users,
   Settings,
   FlaskConical,
@@ -101,21 +210,27 @@ import {
   CalendarClock,
   Printer,
   ShoppingBasket,
+  BarChart3,
 } from 'lucide-vue-next'
 
 const storeUsuario = useStoreUsuario()
 const menuAberto = ref(null)
 let menuTimeout = null
 
+const route = useRoute()
+const menuPrincipalAtivo = computed(() => route.meta.menuPai)
+
 function abrirMenu(nomeMenu) {
   clearTimeout(menuTimeout)
   menuAberto.value = nomeMenu
 }
+
 function fecharMenu() {
   menuTimeout = setTimeout(() => {
     menuAberto.value = null
   }, 200)
 }
+
 function toggleMenu(nomeMenu) {
   menuAberto.value = menuAberto.value === nomeMenu ? null : nomeMenu
 }
@@ -155,6 +270,10 @@ function toggleMenu(nomeMenu) {
 }
 .navegacao-principal ul a:hover,
 .navegacao-principal ul a.router-link-exact-active {
+  color: var(--cor-borda-hover);
+  border-bottom-color: var(--cor-borda-hover);
+}
+.navegacao-principal > ul > li.menu-ativo > a {
   color: var(--cor-borda-hover);
   border-bottom-color: var(--cor-borda-hover);
 }
