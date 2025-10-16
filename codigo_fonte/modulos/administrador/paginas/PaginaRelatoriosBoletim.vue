@@ -33,7 +33,11 @@
           <tr>
             <th>Teste</th>
             <th>Marca</th>
-            <th>Realizados</th>
+            <th>Mobilização</th>
+            <th>Pré-Natal</th>
+            <th>Rotina</th>
+            <th>Treinamentos</th>
+            <th>Total Realizados</th>
             <th>Reagentes</th>
             <th>Inválidos</th>
             <th>Perdidos</th>
@@ -41,12 +45,18 @@
         </thead>
         <tbody>
           <tr v-if="relatorioGeral.length === 0">
-            <td colspan="6">Nenhum dado encontrado para esta competência.</td>
+            <td colspan="10">Nenhum dado encontrado para esta competência.</td>
           </tr>
           <tr v-for="item in relatorioGeral" :key="item.id">
             <td>{{ item.testeNome }}</td>
             <td>{{ item.marcaNome }}</td>
-            <td>{{ item.realizados }}</td>
+            <td>{{ item.realizados.mobilizacao }}</td>
+            <td>{{ item.realizados.preNatal }}</td>
+            <td>{{ item.realizados.rotina }}</td>
+            <td>{{ item.realizados.treinamentos }}</td>
+            <td>
+              <strong>{{ item.totalRealizados }}</strong>
+            </td>
             <td>{{ item.reagentes }}</td>
             <td>{{ item.invalidos }}</td>
             <td>{{ item.perdidos }}</td>
@@ -61,21 +71,32 @@
             <th>Equipe</th>
             <th>Teste</th>
             <th>Marca</th>
-            <th>Realizados</th>
+            <th>Total Realizados</th>
             <th>Reagentes</th>
+            <th>Inválidos</th>
+            <th>Perdidos</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-if="relatorioBase.length === 0">
-            <td colspan="6">Nenhum dado encontrado para esta competência.</td>
+          <tr v-if="relatorioPorEquipe.length === 0">
+            <td colspan="8">Nenhum dado encontrado para esta competência.</td>
           </tr>
-          <tr v-for="item in relatorioBase" :key="item.id">
+          <tr v-for="item in relatorioPorEquipe" :key="item.id">
             <td>{{ item.ubsNome }}</td>
             <td>{{ item.equipeNome }}</td>
             <td>{{ item.testeNome }}</td>
             <td>{{ item.marcaNome }}</td>
-            <td>{{ item.realizados }}</td>
+            <td>
+              {{
+                item.realizados.mobilizacao +
+                item.realizados.preNatal +
+                item.realizados.rotina +
+                item.realizados.treinamentos
+              }}
+            </td>
             <td>{{ item.reagentes }}</td>
+            <td>{{ item.invalidos }}</td>
+            <td>{{ item.perdidos }}</td>
           </tr>
         </tbody>
       </table>
@@ -114,12 +135,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { servicoRelatoriosBoletim } from '../servicos/servicoRelatoriosBoletim.js'
 
 const competencia = ref(new Date().toISOString().slice(0, 7))
 const carregando = ref(false)
-const tipoRelatorio = ref('geral') // 'geral', 'equipe', 'detalhado'
+const tipoRelatorio = ref('geral')
 const relatorioBase = ref([])
 
 const relatorioGeral = computed(() => {
@@ -127,23 +148,50 @@ const relatorioGeral = computed(() => {
   relatorioBase.value.forEach((item) => {
     const key = `${item.testeNome}-${item.marcaNome}`
     if (!consolidado.has(key)) {
-      consolidado.set(key, { ...item, id: key })
+      // Clona o item para não modificar o relatorioBase original
+      consolidado.set(key, JSON.parse(JSON.stringify({ ...item, id: key })))
     } else {
       const entry = consolidado.get(key)
-      entry.realizados += item.realizados
+      // Soma cada sub-categoria de 'realizados'
+      entry.realizados.mobilizacao += item.realizados.mobilizacao
+      entry.realizados.preNatal += item.realizados.preNatal
+      entry.realizados.rotina += item.realizados.rotina
+      entry.realizados.treinamentos += item.realizados.treinamentos
+
       entry.reagentes += item.reagentes
       entry.invalidos += item.invalidos
       entry.perdidos += item.perdidos
     }
   })
-  return Array.from(consolidado.values())
+
+  const resultadoFinal = Array.from(consolidado.values())
+  // Calcula o total de realizados para cada linha
+  resultadoFinal.forEach((item) => {
+    item.totalRealizados = Object.values(item.realizados).reduce((soma, v) => soma + v, 0)
+  })
+
+  return resultadoFinal
+})
+
+const relatorioPorEquipe = computed(() => {
+  return [...relatorioBase.value].sort((a, b) => {
+    if (a.equipeNome < b.equipeNome) return -1
+    if (a.equipeNome > b.equipeNome) return 1
+    if (a.testeNome < b.testeNome) return -1
+    if (a.testeNome > b.testeNome) return 1
+    return 0
+  })
 })
 
 const relatorioDetalhado = computed(() => {
   const detalhes = []
   relatorioBase.value.forEach((item) => {
-    item.detalhesPerdas.forEach((p) => detalhes.push({ ...p, tipo: 'Perda' }))
-    item.detalhesInvalidos.forEach((i) => detalhes.push({ ...i, tipo: 'Inválido' }))
+    if (item.detalhesPerdas) {
+      detalhes.push(...item.detalhesPerdas.map((p) => ({ ...p, tipo: 'Perda' })))
+    }
+    if (item.detalhesInvalidos) {
+      detalhes.push(...item.detalhesInvalidos.map((i) => ({ ...i, tipo: 'Inválido' })))
+    }
   })
   return detalhes
 })
@@ -152,9 +200,7 @@ async function buscarRelatorio() {
   carregando.value = true
   relatorioBase.value = []
   try {
-    relatorioBase.value = await servicoRelatoriosBoletim.gerarRelatorioBasePorEquipe(
-      competencia.value,
-    )
+    relatorioBase.value = await servicoRelatoriosBoletim.gerarRelatorioBase(competencia.value)
   } catch (error) {
     console.error('Erro ao gerar relatório:', error)
     alert('Falha ao gerar relatório.')
@@ -162,6 +208,12 @@ async function buscarRelatorio() {
     carregando.value = false
   }
 }
+
+watch(tipoRelatorio, () => {
+  if (relatorioBase.value.length === 0 && !carregando.value) {
+    buscarRelatorio()
+  }
+})
 
 onMounted(buscarRelatorio)
 </script>
@@ -175,12 +227,14 @@ onMounted(buscarRelatorio)
   padding-bottom: 1.5rem;
   border-bottom: 1px solid var(--cor-borda-suave);
 }
-.seletor-competencia input {
+.grupo-formulario label {
+  margin-right: 1rem;
+}
+.grupo-formulario input {
   padding: 8px;
   border-radius: 4px;
   border: 1px solid var(--cor-borda-suave);
   font-size: 1rem;
-  margin-left: 1rem;
 }
 .botoes-relatorio button {
   padding: 8px 16px;
@@ -198,5 +252,13 @@ onMounted(buscarRelatorio)
 .botoes-relatorio button.ativo {
   background-color: var(--cor-primaria);
   color: white;
+}
+.mensagem-info {
+  text-align: center;
+  padding: 2rem;
+  color: var(--cor-texto-secundario);
+}
+.tabela-padrao {
+  font-size: 0.9rem;
 }
 </style>

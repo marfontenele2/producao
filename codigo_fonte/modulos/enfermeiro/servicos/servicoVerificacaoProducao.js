@@ -11,6 +11,7 @@ const mapeamentoColecoes = {
   boletimTestesRapidos: 'boletimDados',
   scnes: 'scnes',
   saudeMental: 'saudeMental',
+  cronograma: 'cronogramas', // <-- ADICIONADO CRONOGRAMA
   // Semanal
   mdda: 'producaoMDDA',
   notificacaoSemanal: 'producaoNotificacaoSemanal',
@@ -24,10 +25,8 @@ export const servicoVerificacaoProducao = {
       return false
     }
     try {
-      // Para a maioria dos módulos, o ID do documento é uma combinação da competência e da equipe
       let idDoDocumento = `${competencia}_${equipeId}`
 
-      // Exceções: Saúde Mental usa apenas o ID da equipe como chave do documento
       if (tipoProducao === 'saudeMental') {
         idDoDocumento = equipeId
       }
@@ -41,20 +40,15 @@ export const servicoVerificacaoProducao = {
 
       const dados = docSnap.data()
 
-      // ===================================================================
-      // === CORREÇÃO ESTÁ AQUI: Variáveis com nomes inválidos foram corrigidas
-      // ===================================================================
-      // Lógica específica para determinar se a produção foi "entregue"
+      // <-- NOVA LÓGICA PARA CRONOGRAMA ADICIONADA AQUI
+      if (tipoProducao === 'cronograma') {
+        return dados.eventos && dados.eventos.length > 0
+      }
+
       if (tipoProducao === 'scnes') {
-        // A lógica de verificação do SCNES foi mantida, mas com nomes de variáveis corrigidos.
-        const idDocumentoScnes = `${competencia}_${equipeId}`
-        const docRefScnes = doc(db, colecao, idDocumentoScnes)
-        const docSnapScnes = await getDoc(docRefScnes)
-        if (!docSnapScnes.exists()) return false
-        const dadosScnes = docSnapScnes.data()
+        const dadosScnes = docSnap.data()
         return dadosScnes.profissionais && dadosScnes.profissionais.length > 0
       }
-      // ===================================================================
 
       if (tipoProducao === 'saudeMental') {
         return (
@@ -76,13 +70,6 @@ export const servicoVerificacaoProducao = {
     }
   },
 
-  /**
-   * Verifica se uma produção semanal foi entregue.
-   * @param {string} semanaKey - A chave da semana (ex: '2025-36').
-   * @param {string} equipeId - O ID da equipe.
-   * @param {string} tipoProducao - A chave da produção (ex: 'mdda').
-   * @returns {Promise<boolean>} Retorna true se a produção foi entregue.
-   */
   async verificarEntregaSemanal(semanaKey, equipeId, tipoProducao) {
     const colecao = mapeamentoColecoes[tipoProducao]
     if (!colecao || !semanaKey || !equipeId) {

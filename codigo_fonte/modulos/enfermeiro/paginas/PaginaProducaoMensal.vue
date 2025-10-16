@@ -35,16 +35,17 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useStoreUsuario } from '@/nucleo/autenticacao/storeUsuario'
 import { servicoPrazos } from '@/modulos/administrador/servicos/servicoPrazos'
 import { servicoVerificacaoProducao } from '@/modulos/enfermeiro/servicos/servicoVerificacaoProducao'
-import { servicoStatusProducao } from '@/modulos/enfermeiro/servicos/servicoStatusProducao'
 import IndicadorStatusProducao from '@/modulos/enfermeiro/componentes/IndicadorStatusProducao.vue'
+import { useStoreNotificacoes } from '@/nucleo/notificacoes/storeNotificacoes'
 
 const router = useRouter()
 const storeUsuario = useStoreUsuario()
+const storeNotificacoes = useStoreNotificacoes()
 const carregando = ref(true)
 const modulosComStatus = ref([])
 
@@ -76,18 +77,20 @@ const modulosMensais = [
     rota: 'EnfermeiroAcompanhamentoGestantes',
     chavePrazo: 'gestantes',
   },
+  // ADICIONADO: Nova entrada para o módulo de Cronograma
+  { nome: 'Cronograma da Equipe', rota: 'EnfermeiroCronograma', chavePrazo: 'cronograma' },
 ]
 
-onMounted(async () => {
+let unsubscribe = null
+
+onMounted(() => {
   const equipeId = storeUsuario.usuario?.equipeId
   if (!equipeId) {
     carregando.value = false
     return
   }
 
-  const statusPorPrazo = await servicoStatusProducao.obterTodosStatusProducao()
-
-  servicoPrazos.monitorarPrazosDoMes(competenciaAtual, async (prazosDoMes) => {
+  unsubscribe = servicoPrazos.monitorarPrazosDoMes(competenciaAtual, async (prazosDoMes) => {
     const modulosProcessados = []
 
     for (const modulo of modulosMensais) {
@@ -95,13 +98,27 @@ onMounted(async () => {
       const dataAbertura = prazoInfo.abertura
       const dataFechamento = prazoInfo.fechamento
 
+      const hoje = new Date()
+      hoje.setHours(0, 0, 0, 0)
+      const dtAbertura = dataAbertura ? new Date(dataAbertura + 'T00:00:00') : null
+      const dtFechamento = dataFechamento ? new Date(dataFechamento + 'T23:59:59') : null
+
+      let statusFinal = 'Fechado'
+      if (dtAbertura && dtFechamento) {
+        if (hoje >= dtAbertura && hoje <= dtFechamento) {
+          statusFinal = 'Aberto'
+        }
+      }
+
       const foiEntregue = await servicoVerificacaoProducao.verificarEntregaMensal(
         competenciaAtual,
         equipeId,
         modulo.chavePrazo,
       )
 
-      let statusFinal = foiEntregue ? 'Entregue' : statusPorPrazo[modulo.chavePrazo] || 'Pendente'
+      if (foiEntregue) {
+        statusFinal = 'Entregue'
+      }
 
       modulosProcessados.push({
         ...modulo,
@@ -114,19 +131,22 @@ onMounted(async () => {
           : 'N/D',
       })
     }
-    modulosComStatus.value = modulosProcessados
+    modulosComStatus.value = modulosProcessados.sort((a, b) => a.nome.localeCompare(b.nome))
     carregando.value = false
   })
 })
 
-/**
- * [ALTERADO] A lógica de navegação agora permite o acesso se o status for 'Aberto' ou 'Entregue'.
- * O bloqueio ocorre para 'Fechado', 'Encerrado' e 'Pendente'.
- */
+onUnmounted(() => {
+  if (unsubscribe) unsubscribe()
+})
+
 function navegarParaProducao(nomeRota, status) {
   const statusPermitidos = ['Aberto', 'Entregue']
   if (!statusPermitidos.includes(status)) {
-    alert(`Acesso bloqueado. Status da produção: ${status}.`)
+    storeNotificacoes.mostrarNotificacao({
+      mensagem: `Acesso bloqueado. Status da produção: ${status}.`,
+      tipo: 'alerta',
+    })
     return
   }
   router.push({ name: nomeRota })

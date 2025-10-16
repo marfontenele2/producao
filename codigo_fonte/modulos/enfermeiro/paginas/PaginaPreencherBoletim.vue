@@ -100,7 +100,7 @@
           <button
             class="botao botao-primario"
             @click="salvarMarca(marcaSelecionada.id, marcaSelecionada.nome)"
-            :disabled="!isMarcaValidaParaSalvar(marcaSelecionada.id) || salvandoId"
+            :disabled="salvandoId === marcaSelecionada.id"
           >
             <Save :size="18" />
             {{ salvandoId === marcaSelecionada.id ? 'Salvando...' : 'Salvar e Voltar' }}
@@ -133,26 +133,20 @@ const teste = ref(null)
 const marcasLiberadas = ref([])
 const dadosEntrada = ref({ testes: {} })
 
-// --- Controle de Estado da UI ---
-const marcaSelecionada = ref(null) // Guarda o objeto da marca selecionada
+const marcaSelecionada = ref(null)
 const salvandoId = ref(null)
 const marcasSalvas = ref(new Set())
 
 const competencia = route.params.competencia
 const testeId = route.params.testeId
 
-/**
- * @JSDoc
- * Estrutura de dados padrão para uma marca, agora incluindo inválidos e perdidos.
- */
 const criarEstruturaPadrao = () => ({
   realizados: { preNatal: null, mobilizacao: null, treinamentos: null, rotina: null },
   reagentes: null,
-  invalidos: [], // Adicionado
-  perdidos: [], // Adicionado
+  invalidos: [],
+  perdidos: [],
 })
 
-// onMounted permanece o mesmo, pois a lógica de carregar todos os dados é robusta.
 onMounted(async () => {
   try {
     const equipeId = storeUsuario.usuario.equipeId
@@ -173,7 +167,6 @@ onMounted(async () => {
     marcasLiberadas.value.forEach((marca) => {
       const dadosMarcaSalva = dadosSalvosParaTeste[marca.id]
       if (dadosMarcaSalva) {
-        // Garante que os arrays de perdidos/invalidos existam
         dadosMarcaSalva.invalidos = dadosMarcaSalva.invalidos || []
         dadosMarcaSalva.perdidos = dadosMarcaSalva.perdidos || []
         dadosIniciaisParaTeste[marca.id] = dadosMarcaSalva
@@ -192,41 +185,17 @@ onMounted(async () => {
   }
 })
 
-/**
- * @JSDoc
- * Propriedade computada para acessar facilmente os dados da marca selecionada no formulário.
- */
 const dadosMarcaAtual = computed(() => {
   if (!marcaSelecionada.value) return null
   return get(dadosEntrada.value, ['testes', testeId, marcaSelecionada.value.id])
 })
 
-/**
- * @JSDoc
- * Define a marca selecionada para exibir seu formulário.
- * @param {object} marca - O objeto completo da marca clicada.
- */
 function selecionarMarca(marca) {
   marcaSelecionada.value = marca
 }
 
-/**
- * @JSDoc
- * Limpa a marca selecionada para voltar à tela de seleção.
- */
 function voltarParaSelecao() {
   marcaSelecionada.value = null
-}
-
-// As funções de validação, cálculo e salvamento continuam robustas
-function isMarcaValidaParaSalvar(marcaId) {
-  const dadosMarca = get(dadosEntrada.value, ['testes', testeId, marcaId])
-  if (!dadosMarca) return false
-  const todosRealizadosPreenchidos = Object.values(dadosMarca.realizados).every(
-    (valor) => typeof valor === 'number',
-  )
-  const reagentesPreenchido = typeof dadosMarca.reagentes === 'number'
-  return todosRealizadosPreenchidos && reagentesPreenchido
 }
 
 function calcularTotalRealizados(marcaId) {
@@ -241,7 +210,6 @@ async function salvarMarca(marcaId, nomeMarca) {
     const { equipeId, ubsId, uid } = storeUsuario.usuario
     const dadosMarcaParaSalvar = cloneDeep(dadosMarcaAtual.value)
 
-    // Converte valores nulos para 0 antes de salvar
     Object.keys(dadosMarcaParaSalvar.realizados).forEach((key) => {
       if (dadosMarcaParaSalvar.realizados[key] === null) dadosMarcaParaSalvar.realizados[key] = 0
     })
@@ -257,7 +225,7 @@ async function salvarMarca(marcaId, nomeMarca) {
       mensagem: `Dados da marca ${nomeMarca} salvos!`,
       tipo: 'sucesso',
     })
-    voltarParaSelecao() // Retorna para a tela de seleção após salvar
+    voltarParaSelecao()
   } catch (error) {
     console.error('Erro ao salvar marca:', error)
     storeNotificacoes.mostrarNotificacao({ mensagem: 'Erro ao salvar os dados.', tipo: 'erro' })
@@ -272,13 +240,12 @@ function voltarParaPainel() {
 </script>
 
 <style scoped>
-/* Estilo para a grade de seleção de marcas */
+/* Estilos não foram alterados */
 .grid-selecao-marcas {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   gap: 1.5rem;
 }
-
 .card-selecao {
   display: flex;
   align-items: center;
@@ -295,20 +262,16 @@ function voltarParaPainel() {
   color: #334155;
   text-align: center;
 }
-
 .card-selecao:hover {
   border-color: var(--cor-primaria);
   transform: translateY(-4px);
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
 }
-
 .card-salvo {
-  background-color: #eff6ff; /* Fundo azul claro para salvo */
+  background-color: #eff6ff;
   border-color: #60a5fa;
   color: #1e40af;
 }
-
-/* Estilos para o formulário (reaproveitados e ajustados) */
 .subtitulo {
   font-size: 1rem;
   margin: 0;

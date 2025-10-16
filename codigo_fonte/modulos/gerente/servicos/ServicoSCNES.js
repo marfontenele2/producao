@@ -1,87 +1,64 @@
-// codigo_fonte/modulos/gerente/servicos/ServicoSCNES.js
-
-// CORRIGIDO: O caminho para o arquivo de configuração do Firebase foi ajustado.
 import { db } from '@/nucleo/configuracao/firebase'
 import { doc, getDoc, setDoc } from 'firebase/firestore'
-import { v4 as uuidv4 } from 'uuid'
+import { subMonths, format } from 'date-fns'
+import { useStoreNotificacoes } from '@/nucleo/notificacoes/storeNotificacoes'
 
-// ... (o restante do arquivo permanece o mesmo)
-/**
- * @description
- * Gera o ID do documento no Firestore com base na competência e na equipe.
- * Formato: AAAA-MM_equipeId
- * @param {string} competencia - A competência no formato 'AAAA-MM'.
- * @param {string} equipeId - O ID da equipe.
- * @returns {string} O ID do documento formatado.
- */
-const gerarDocumentoId = (competencia, equipeId) => `${competencia}_${equipeId}`
+const NOME_COLECAO = 'scnes'
 
-/**
- * @description
- * Carrega a lista de profissionais de uma equipe para uma competência específica.
- * Se o documento não existir no Firestore, retorna uma lista vazia,
- * permitindo que a interface inicie um novo cadastro.
- * @param {string} competencia - A competência no formato 'AAAA-MM'.
- * @param {string} equipeId - O ID da equipe.
- * @returns {Promise<Array<Object>>} Uma promessa que resolve para a lista de profissionais.
- */
-export const carregarProfissionais = async (competencia, equipeId) => {
-  if (!competencia || !equipeId) {
-    console.warn('Competência ou ID da equipe não fornecidos para carregar SCNES.')
-    return []
-  }
-
-  const docId = gerarDocumentoId(competencia, equipeId)
-  const docRef = doc(db, 'scnes', docId)
-
-  try {
+export const ServicoSCNES = {
+  /**
+   * Carrega a lista de profissionais de uma equipe para uma competência específica.
+   */
+  async carregarProfissionais(competencia, equipeId) {
+    if (!competencia || !equipeId) return []
+    const docId = `${competencia}_${equipeId}`
+    const docRef = doc(db, NOME_COLECAO, docId)
     const docSnap = await getDoc(docRef)
-
-    if (docSnap.exists()) {
-      const profissionais = docSnap.data().profissionais || []
-      return profissionais.map((p) => ({ ...p, id: p.id || uuidv4() }))
-    } else {
-      return []
+    if (docSnap.exists() && docSnap.data().profissionais) {
+      return docSnap.data().profissionais
     }
-  } catch (error) {
-    console.error('Erro ao carregar lista de profissionais SCNES:', error)
     return []
-  }
-}
+  },
 
-/**
- * @description
- * Salva (sobrescreve) a lista completa de profissionais para uma competência e equipe.
- * Garante que cada profissional na lista tenha um ID único antes de salvar.
- * @param {string} competencia - A competência no formato 'AAAA-MM'.
- * @param {string} equipeId - O ID da equipe.
- * @param {Array<Object>} listaProfissionais - A lista de objetos de profissionais a ser salva.
- * @returns {Promise<boolean>} Uma promessa que resolve para 'true' em caso de sucesso e 'false' em caso de falha.
- */
-export const salvarProfissionais = async (competencia, equipeId, listaProfissionais) => {
-  if (!competencia || !equipeId || !listaProfissionais) {
-    console.error('Dados insuficientes para salvar a lista de profissionais SCNES.')
-    return false
-  }
+  /**
+   * Salva a lista de profissionais para uma competência e equipe.
+   */
+  async salvarProfissionais(competencia, equipeId, profissionais) {
+    const notificacaoStore = useStoreNotificacoes()
+    if (!competencia || !equipeId || !profissionais) {
+      notificacaoStore.mostrarNotificacao({
+        tipo: 'erro',
+        mensagem: 'Dados insuficientes para salvar.',
+      })
+      return false
+    }
+    const docId = `${competencia}_${equipeId}`
+    const docRef = doc(db, NOME_COLECAO, docId)
+    try {
+      await setDoc(docRef, { profissionais: profissionais }, { merge: true })
+      return true
+    } catch (error) {
+      console.error('Erro ao salvar profissionais SCNES: ', error)
+      return false
+    }
+  },
 
-  const profissionaisComId = listaProfissionais.map((profissional) => ({
-    ...profissional,
-    id: profissional.id || uuidv4(),
-  }))
-
-  const docId = gerarDocumentoId(competencia, equipeId)
-  const docRef = doc(db, 'scnes', docId)
-
-  try {
-    await setDoc(docRef, {
-      profissionais: profissionaisComId,
-      ultimaAtualizacao: new Date().toISOString(),
-      competencia: competencia,
-      equipeId: equipeId,
-    })
-    return true
-  } catch (error) {
-    console.error('Erro ao salvar a lista de profissionais SCNES:', error)
-    return false
-  }
+  /**
+   * Busca a lista de profissionais mais recente de uma equipe.
+   */
+  async buscarProfissionaisMaisRecentes(equipeId) {
+    if (!equipeId) return []
+    let dataDeBusca = new Date()
+    for (let i = 0; i < 4; i++) {
+      const competencia = format(dataDeBusca, 'yyyy-MM')
+      const docId = `${competencia}_${equipeId}`
+      const docRef = doc(db, NOME_COLECAO, docId)
+      const docSnap = await getDoc(docRef)
+      if (docSnap.exists() && docSnap.data().profissionais?.length > 0) {
+        return docSnap.data().profissionais
+      }
+      dataDeBusca = subMonths(dataDeBusca, 1)
+    }
+    return []
+  },
 }

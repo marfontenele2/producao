@@ -2,7 +2,7 @@
   <div class="no-print">
     <div class="pagina-container">
       <header class="pagina-cabecalho">
-        <h1>Impressão Consolidada: Relatório de Profissionais (SCNES)</h1>
+        <h1>Impressão Consolidada: Cronograma das Equipes</h1>
       </header>
       <div class="conteudo-card card-filtros">
         <div class="campo">
@@ -28,7 +28,7 @@
               </label>
               <label v-for="equipe in listaEquipes" :key="equipe.id">
                 <input type="checkbox" :value="equipe.id" v-model="equipesSelecionadas" />
-                {{ equipe.nome }}
+                {{ equipe.nome }} ({{ equipe.nomeUbs }})
               </label>
             </div>
           </div>
@@ -41,7 +41,11 @@
         >
           <FileSearch :size="18" /> {{ buscando ? 'Buscando...' : 'Gerar Relatório' }}
         </button>
-        <button class="botao" @click="imprimirPagina" :disabled="!dadosRelatorio">
+        <button
+          class="botao"
+          @click="imprimirPagina"
+          :disabled="!dadosRelatorio || dadosRelatorio.length === 0"
+        >
           <Printer :size="18" /> Imprimir
         </button>
       </div>
@@ -52,50 +56,30 @@
     {{ erroBusca }}
   </div>
 
-  <div v-if="dadosRelatorio" id="area-impressao">
+  <div v-if="dadosRelatorio && dadosRelatorio.length > 0" id="area-impressao">
     <div class="pagina-a4 borda-impressao">
       <header class="cabecalho-impressao">
         <LogoCabecalhoImpressao />
-        <h3>RELATÓRIO CONSOLIDADO DE PROFISSIONAIS (SCNES)</h3>
-        <div class="info-cabecalho-grid">
+        <h3>RELATÓRIO CONSOLIDADO DE CRONOGRAMAS DE EQUIPES</h3>
+        <div class="info-cabecalho-grid-cronograma">
           <span><strong>Município:</strong> GRANJA</span>
           <span><strong>Competência:</strong> {{ competenciaFormatada }}</span>
           <span><strong>Data de Emissão:</strong> {{ dataAtualFormatada }}</span>
         </div>
       </header>
 
+      <div class="legenda-icones">
+        <strong>Legenda:</strong>
+        <div v-for="categoria in categoriasLegenda" :key="categoria.nome" class="legenda-item">
+          <component :is="categoria.icone" :size="16" />
+          <span>{{ categoria.nome }}</span>
+        </div>
+      </div>
+
       <main class="corpo-impressao">
-        <div
-          v-for="equipeData in dadosRelatorio.dadosPorEquipe"
-          :key="equipeData.equipeId"
-          class="secao-equipe"
-        >
+        <div v-for="equipeData in dadosRelatorio" :key="equipeData.equipeId" class="secao-equipe">
           <h4 class="titulo-secao-impressao">Equipe: {{ equipeData.equipeNome }}</h4>
-          <table class="tabela-impressao">
-            <thead>
-              <tr>
-                <th>Nome Completo do Profissional</th>
-                <th>CPF</th>
-                <th>Data de Nasc.</th>
-                <th>CNS</th>
-                <th>Cargo</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-if="equipeData.profissionais.length === 0">
-                <td colspan="5" style="text-align: center">
-                  Nenhum profissional encontrado para esta equipe.
-                </td>
-              </tr>
-              <tr v-for="prof in equipeData.profissionais" :key="prof.cpf">
-                <td class="coluna-nome">{{ prof.nome }}</td>
-                <td>{{ prof.cpf }}</td>
-                <td>{{ formatarData(prof.dataNascimento) }}</td>
-                <td>{{ prof.cns }}</td>
-                <td>{{ prof.cargo }}</td>
-              </tr>
-            </tbody>
-          </table>
+          <CalendarioImpressao :competencia="competencia" :eventos="equipeData.eventos" />
         </div>
       </main>
 
@@ -112,22 +96,40 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { servicoEquipes } from '@/nucleo/servicos_comuns/servicoEquipes'
-// ===================================================================
-// == CORREÇÃO 1: Importando o objeto do serviço, não a função
-// ===================================================================
-import { ServicoSCNES } from '@/modulos/gerente/servicos/ServicoSCNES'
-import { FileSearch, Printer, ChevronDown } from 'lucide-vue-next'
+import { servicoCronograma } from '@/modulos/enfermeiro/servicos/servicoCronograma'
+// ÍCONES PARA A LEGENDA ADICIONADOS AQUI
+import {
+  FileSearch,
+  Printer,
+  ChevronDown,
+  Stethoscope,
+  HeartPulse,
+  Syringe,
+  User,
+} from 'lucide-vue-next'
 import LogoCabecalhoImpressao from '@/nucleo/componentes/LogoCabecalhoImpressao.vue'
+import CalendarioImpressao from '../componentes/CalendarioImpressao.vue'
 
-const buscando = ref(false)
-const erroBusca = ref('')
-const dadosRelatorio = ref(null)
-
+// Estado dos filtros
 const competencia = ref(new Date().toISOString().slice(0, 7))
 const listaEquipes = ref([])
 const equipesSelecionadas = ref([])
 const isDropdownOpen = ref(false)
 
+// Estado de controle e dados
+const buscando = ref(false)
+const erroBusca = ref('')
+const dadosRelatorio = ref(null)
+
+// LISTA DE CATEGORIAS PARA A LEGENDA ADICIONADA AQUI
+const categoriasLegenda = [
+  { nome: 'Enfermeiro', icone: Stethoscope },
+  { nome: 'Médico', icone: HeartPulse },
+  { nome: 'Técnico de Enfermagem', icone: Syringe },
+  { nome: 'Outros', icone: User },
+]
+
+// Computeds para UI de filtros
 const todasEquipesSelecionadas = computed(
   () =>
     listaEquipes.value.length > 0 && equipesSelecionadas.value.length === listaEquipes.value.length,
@@ -137,6 +139,8 @@ const dropdownLabel = computed(() => {
   if (equipesSelecionadas.value.length === 1) return '1 equipe selecionada'
   return `${equipesSelecionadas.value.length} equipes selecionadas`
 })
+
+// Computeds para formatação na impressão
 const competenciaFormatada = computed(() => {
   if (!competencia.value) return ''
   const [ano, mes] = competencia.value.split('-')
@@ -148,43 +152,37 @@ onMounted(async () => {
   listaEquipes.value = await servicoEquipes.buscarTodas()
 })
 
+// Funções do dropdown
 function toggleDropdown() {
   isDropdownOpen.value = !isDropdownOpen.value
 }
 function toggleTodasEquipes(event) {
   equipesSelecionadas.value = event.target.checked ? listaEquipes.value.map((e) => e.id) : []
 }
-function formatarData(dataString) {
-  if (!dataString) return 'N/D'
-  const [ano, mes, dia] = dataString.split('-')
-  return `${dia}/${mes}/${ano}`
-}
 
+// Lógica principal
 async function gerarRelatorio() {
   buscando.value = true
   erroBusca.value = ''
   dadosRelatorio.value = null
   try {
     const promessas = equipesSelecionadas.value.map((equipeId) =>
-      // ===================================================================
-      // == CORREÇÃO 2: Chamando a função como um método do objeto
-      // ===================================================================
-      ServicoSCNES.carregarProfissionais(competencia.value, equipeId).then((profissionais) => ({
+      servicoCronograma.buscarCronograma(competencia.value, equipeId).then((eventos) => ({
         equipeId,
         equipeNome: listaEquipes.value.find((e) => e.id === equipeId)?.nome || 'Desconhecida',
-        profissionais,
+        eventos: eventos || [],
       })),
     )
     const resultados = await Promise.all(promessas)
-    const dadosPorEquipe = resultados.filter((r) => r.profissionais.length > 0)
+    const relatorioFinal = resultados.filter((r) => r.eventos.length > 0)
 
-    if (dadosPorEquipe.length === 0) {
-      erroBusca.value = `Nenhuma produção SCNES encontrada para as equipes na competência ${competenciaFormatada.value}.`
+    if (relatorioFinal.length === 0) {
+      erroBusca.value = `Nenhum cronograma com eventos registrados foi encontrado para as equipes selecionadas na competência ${competenciaFormatada.value}.`
       return
     }
-    dadosRelatorio.value = { dadosPorEquipe }
+    dadosRelatorio.value = relatorioFinal
   } catch (error) {
-    console.error('Erro ao consolidar relatório SCNES:', error)
+    console.error('Erro ao consolidar relatório de cronogramas:', error)
     erroBusca.value = 'Ocorreu um erro ao buscar e consolidar os dados do relatório.'
   } finally {
     buscando.value = false
@@ -197,18 +195,21 @@ function imprimirPagina() {
 </script>
 
 <style scoped>
-/* Estilos fieis ao exemplo PaginaImpressaoMDDAAdmin.vue */
+/* Estilos dos filtros (idênticos ao SCNES) */
 @page {
   size: A4 portrait;
   margin: 1.5cm;
 }
-.conteudo-card.card-filtros,
-.card-filtros {
+.conteudo-card.card-filtros {
   padding: 1.5rem;
   display: flex;
   align-items: flex-end;
   gap: 1.5rem;
   flex-wrap: wrap;
+}
+.campo {
+  display: flex;
+  flex-direction: column;
 }
 .campo label {
   font-weight: 500;
@@ -259,10 +260,13 @@ function imprimirPagina() {
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem;
+  cursor: pointer;
 }
 .dropdown-painel label:hover {
   background-color: #f8fafc;
 }
+
+/* Estilos da Impressão (adaptados do SCNES para o cronograma) */
 .pagina-a4 {
   background: white;
   width: 21cm;
@@ -273,6 +277,8 @@ function imprimirPagina() {
   color: black;
   position: relative;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
 }
 .borda-impressao {
   border: 1px solid #333;
@@ -286,7 +292,7 @@ function imprimirPagina() {
   margin-top: 1rem;
   font-size: 12pt;
 }
-.info-cabecalho-grid {
+.info-cabecalho-grid-cronograma {
   display: grid;
   grid-template-columns: 2fr 1fr 1fr;
   text-align: left;
@@ -294,8 +300,28 @@ function imprimirPagina() {
   margin-top: 1rem;
   font-size: 9pt;
 }
+
+/* ESTILOS PARA A LEGENDA ADICIONADOS AQUI */
+.legenda-icones {
+  display: flex;
+  gap: 1.5rem;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 0.75rem 0;
+  font-size: 9pt;
+  border-bottom: 1px solid #ccc;
+  margin-bottom: 1rem;
+}
+.legenda-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .corpo-impressao {
   padding-top: 1rem;
+  flex-grow: 1;
 }
 .secao-equipe {
   margin-bottom: 1.5rem;
@@ -309,23 +335,6 @@ function imprimirPagina() {
   background-color: #f2f2f2;
   padding: 4px;
   border: 1px solid #333;
-}
-.tabela-impressao {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 8pt;
-}
-.tabela-impressao th,
-.tabela-impressao td {
-  border: 1px solid #333;
-  padding: 3px 5px;
-  text-align: center;
-}
-.tabela-impressao th {
-  background-color: #f2f2f2;
-}
-.tabela-impressao td.coluna-nome {
-  text-align: left;
 }
 .rodape-impressao {
   display: flex;
@@ -341,6 +350,8 @@ function imprimirPagina() {
 .linha-assinatura {
   margin-bottom: 2px;
 }
+
+/* Estilos Gerais */
 .mensagem-feedback.erro {
   color: #b91c1c;
   background-color: #fee2e2;

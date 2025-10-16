@@ -168,19 +168,16 @@ import { v4 as uuidv4 } from 'uuid'
 import { useStoreUsuario } from '@/nucleo/autenticacao/storeUsuario'
 import { useStoreNotificacoes } from '@/nucleo/notificacoes/storeNotificacoes'
 import { LoaderCircle, PlusCircle, Pencil, Trash2, Info } from 'lucide-vue-next'
-
-// Serviços
-import {
-  carregarProfissionais,
-  salvarProfissionais,
-} from '@/modulos/gerente/servicos/ServicoSCNES.js'
+// ===================================================================
+// == CORREÇÃO 1: Importando o objeto do serviço, não as funções avulsas
+// ===================================================================
+import { ServicoSCNES } from '@/modulos/gerente/servicos/ServicoSCNES.js'
 import { cargosSaude } from '@/nucleo/utils/cargosSaude.js'
 import { servicoEquipes } from '@/nucleo/servicos_comuns/servicoEquipes.js'
 
 const storeUsuario = useStoreUsuario()
 const notificacaoStore = useStoreNotificacoes()
 
-// --- ESTADO REATIVO ---
 const competenciaSelecionada = ref('')
 const competenciaInputType = ref('text')
 const equipeSelecionada = ref('')
@@ -192,12 +189,7 @@ const salvando = ref(false)
 const dadosCarregados = ref(false)
 const dadosVieramDoMesAnterior = ref(false)
 
-const modal = reactive({
-  visivel: false,
-  modo: 'adicionar',
-  idEmEdicao: null,
-})
-
+const modal = reactive({ visivel: false, modo: 'adicionar', idEmEdicao: null })
 const formProfissional = reactive({
   id: '',
   nome: '',
@@ -207,7 +199,6 @@ const formProfissional = reactive({
   cargo: '',
 })
 
-// --- HOOKS E WATCHERS ---
 onMounted(async () => {
   const ubsId = storeUsuario.usuario?.ubsId
   if (ubsId) {
@@ -225,14 +216,12 @@ watch([competenciaSelecionada, equipeSelecionada], () => {
   dadosCarregados.value = false
 })
 
-// --- PROPRIEDADES COMPUTADAS ---
 const competenciaFormatada = computed(() => {
   if (!competenciaSelecionada.value) return ''
   const [ano, mes] = competenciaSelecionada.value.split('-')
   return `${mes}/${ano}`
 })
 
-// --- FUNÇÕES ---
 function ajustarTipoInputCompetencia() {
   if (!competenciaSelecionada.value) {
     competenciaInputType.value = 'text'
@@ -253,7 +242,10 @@ async function buscarDadosSCNES() {
   dadosCarregados.value = false
   dadosVieramDoMesAnterior.value = false
 
-  let dadosAtuais = await carregarProfissionais(
+  // ===================================================================
+  // == CORREÇÃO 2: Chamando a função como um método do objeto importado
+  // ===================================================================
+  let dadosAtuais = await ServicoSCNES.carregarProfissionais(
     competenciaSelecionada.value,
     equipeSelecionada.value,
   )
@@ -267,7 +259,10 @@ async function buscarDadosSCNES() {
       mensagem: `Nenhum dado encontrado. Buscando dados de ${competenciaAnterior}...`,
     })
 
-    let dadosAnteriores = await carregarProfissionais(competenciaAnterior, equipeSelecionada.value)
+    let dadosAnteriores = await ServicoSCNES.carregarProfissionais(
+      competenciaAnterior,
+      equipeSelecionada.value,
+    )
 
     profissionais.value = dadosAnteriores.map((p) => {
       const { id, ...resto } = p
@@ -362,10 +357,7 @@ function salvarProfissional() {
     return
   }
 
-  const dadosParaSalvar = {
-    ...formProfissional,
-    nome: formProfissional.nome.toUpperCase(),
-  }
+  const dadosParaSalvar = { ...formProfissional, nome: formProfissional.nome.toUpperCase() }
 
   if (modal.modo === 'adicionar') {
     profissionais.value.push({ ...dadosParaSalvar, id: uuidv4() })
@@ -386,7 +378,7 @@ function removerProfissional(id) {
 
 async function finalizarMes() {
   salvando.value = true
-  const sucesso = await salvarProfissionais(
+  const sucesso = await ServicoSCNES.salvarProfissionais(
     competenciaSelecionada.value,
     equipeSelecionada.value,
     profissionais.value,
@@ -416,9 +408,9 @@ async function finalizarMes() {
   align-items: center;
   gap: 0.75rem;
   padding: 1rem;
-  background-color: #e0f2fe; /* Azul claro */
-  border: 1px solid #7dd3fc; /* Azul médio */
-  color: #0c4a6e; /* Azul escuro */
+  background-color: #e0f2fe;
+  border: 1px solid #7dd3fc;
+  color: #0c4a6e;
   border-radius: 8px;
   margin-bottom: 1.5rem;
   font-size: 0.9rem;

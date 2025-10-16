@@ -1,5 +1,3 @@
-// C:\producao\codigo_fonte\modulos\administrador\servicos\servicoEstoque.js
-
 import { db } from '@/nucleo/configuracao/firebase'
 import {
   collection,
@@ -11,8 +9,8 @@ import {
   serverTimestamp,
   runTransaction,
   getDoc,
-  where, // ADICIONADO
-  getDocs, // ADICIONADO
+  where,
+  getDocs,
 } from 'firebase/firestore'
 
 const NOME_COLECAO_ESTOQUE = 'estoqueTestesRapidos'
@@ -37,9 +35,6 @@ export const servicoEstoque = {
     return addDoc(collection(db, NOME_COLECAO_ESTOQUE), dadosParaSalvar)
   },
 
-  // ===================================================================
-  // === ADICIONADO: Nova função para a dispensação de insumos
-  // ===================================================================
   /**
    * Busca todos os lotes de um item específico que ainda possuem estoque.
    * @param {string} testeId - O ID do tipo de teste.
@@ -61,7 +56,6 @@ export const servicoEstoque = {
     }
     return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
   },
-  // ===================================================================
 
   async registrarSaidaDeLote({ lote, quantidadeSaida, equipeDestino, idUsuarioAdmin }) {
     const loteRef = doc(db, NOME_COLECAO_ESTOQUE, lote.id)

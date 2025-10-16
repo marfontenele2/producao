@@ -30,6 +30,10 @@
           <Baby :size="32" />
           <span class="card-titulo">Consolidado de Gestantes</span>
         </div>
+        <div class="card-impressao" @click="navegarPara('EnfermeiroImpressaoCronograma')">
+          <CalendarDays :size="32" />
+          <span class="card-titulo">Cronograma da Equipe</span>
+        </div>
       </div>
 
       <h2 class="secao-titulo">Relatórios Semanais</h2>
@@ -53,13 +57,13 @@
 
 <script setup>
 import { useRouter } from 'vue-router'
-// ADICIONADO: Ícones para os novos cards
 import {
   Printer,
   FileSpreadsheet,
   ClipboardList,
   Presentation,
   Baby,
+  CalendarDays, // Adicionado
   BarChart3,
   FileWarning,
   ClipboardX,

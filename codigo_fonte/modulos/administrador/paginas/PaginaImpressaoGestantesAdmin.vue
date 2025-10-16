@@ -2,14 +2,13 @@
   <div class="no-print">
     <div class="pagina-container">
       <header class="pagina-cabecalho">
-        <h1>Impressão Consolidada: Relatório de Profissionais (SCNES)</h1>
+        <h1>Impressão Consolidada: Acompanhamento de Gestantes</h1>
       </header>
       <div class="conteudo-card card-filtros">
         <div class="campo">
           <label for="competencia">Competência</label>
           <input type="month" id="competencia" v-model="competencia" class="input-padrao" />
         </div>
-
         <div class="campo">
           <label>Equipes</label>
           <div class="dropdown-multiselect">
@@ -18,14 +17,13 @@
               <ChevronDown :size="16" :class="{ 'dropdown-aberto': isDropdownOpen }" />
             </button>
             <div v-if="isDropdownOpen" class="dropdown-painel">
-              <label>
-                <input
+              <label
+                ><input
                   type="checkbox"
                   @change="toggleTodasEquipes"
                   :checked="todasEquipesSelecionadas"
-                />
-                <strong>(Marcar Todas)</strong>
-              </label>
+                /><strong>(Marcar Todas)</strong></label
+              >
               <label v-for="equipe in listaEquipes" :key="equipe.id">
                 <input type="checkbox" :value="equipe.id" v-model="equipesSelecionadas" />
                 {{ equipe.nome }}
@@ -33,7 +31,6 @@
             </div>
           </div>
         </div>
-
         <button
           class="botao botao-primario"
           @click="gerarRelatorio"
@@ -47,64 +44,66 @@
       </div>
     </div>
   </div>
-
   <div v-if="erroBusca" class="no-print pagina-container mensagem-feedback erro">
     {{ erroBusca }}
   </div>
-
   <div v-if="dadosRelatorio" id="area-impressao">
-    <div class="pagina-a4 borda-impressao">
+    <div class="pagina-a4-retrato borda-impressao">
       <header class="cabecalho-impressao">
         <LogoCabecalhoImpressao />
-        <h3>RELATÓRIO CONSOLIDADO DE PROFISSIONAIS (SCNES)</h3>
-        <div class="info-cabecalho-grid">
-          <span><strong>Município:</strong> GRANJA</span>
-          <span><strong>Competência:</strong> {{ competenciaFormatada }}</span>
-          <span><strong>Data de Emissão:</strong> {{ dataAtualFormatada }}</span>
+        <div class="titulo-container">
+          <h3>CONSOLIDADO MENSAL DE GESTANTES</h3>
+          <div class="info-cabecalho">
+            <span><strong>Competência:</strong> {{ competenciaFormatada }}</span>
+            <span><strong>Data de Emissão:</strong> {{ dataAtualFormatada }}</span>
+          </div>
         </div>
       </header>
-
-      <main class="corpo-impressao">
-        <div
-          v-for="equipeData in dadosRelatorio.dadosPorEquipe"
-          :key="equipeData.equipeId"
-          class="secao-equipe"
-        >
-          <h4 class="titulo-secao-impressao">Equipe: {{ equipeData.equipeNome }}</h4>
-          <table class="tabela-impressao">
-            <thead>
-              <tr>
-                <th>Nome Completo do Profissional</th>
-                <th>CPF</th>
-                <th>Data de Nasc.</th>
-                <th>CNS</th>
-                <th>Cargo</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-if="equipeData.profissionais.length === 0">
-                <td colspan="5" style="text-align: center">
-                  Nenhum profissional encontrado para esta equipe.
-                </td>
-              </tr>
-              <tr v-for="prof in equipeData.profissionais" :key="prof.cpf">
-                <td class="coluna-nome">{{ prof.nome }}</td>
-                <td>{{ prof.cpf }}</td>
-                <td>{{ formatarData(prof.dataNascimento) }}</td>
-                <td>{{ prof.cns }}</td>
-                <td>{{ prof.cargo }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+      <main class="conteudo-impressao">
+        <table class="tabela-padrao">
+          <thead>
+            <tr>
+              <th>Nível de Risco</th>
+              <th>Total</th>
+              <th>Branca</th>
+              <th>Parda</th>
+              <th>Preta</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Risco Habitual</td>
+              <td>{{ dadosRelatorio.riscoHabitual.total }}</td>
+              <td>{{ dadosRelatorio.riscoHabitual.branca }}</td>
+              <td>{{ dadosRelatorio.riscoHabitual.parda }}</td>
+              <td>{{ dadosRelatorio.riscoHabitual.preta }}</td>
+            </tr>
+            <tr>
+              <td>Risco Intermediário</td>
+              <td>{{ dadosRelatorio.riscoIntermediario.total }}</td>
+              <td>{{ dadosRelatorio.riscoIntermediario.branca }}</td>
+              <td>{{ dadosRelatorio.riscoIntermediario.parda }}</td>
+              <td>{{ dadosRelatorio.riscoIntermediario.preta }}</td>
+            </tr>
+            <tr>
+              <td>Alto Risco</td>
+              <td>{{ dadosRelatorio.altoRisco.total }}</td>
+              <td>{{ dadosRelatorio.altoRisco.branca }}</td>
+              <td>{{ dadosRelatorio.altoRisco.parda }}</td>
+              <td>{{ dadosRelatorio.altoRisco.preta }}</td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr>
+              <th>Total Geral</th>
+              <th>{{ totalGeral.total }}</th>
+              <th>{{ totalGeral.branca }}</th>
+              <th>{{ totalGeral.parda }}</th>
+              <th>{{ totalGeral.preta }}</th>
+            </tr>
+          </tfoot>
+        </table>
       </main>
-
-      <footer class="rodape-impressao">
-        <div class="assinatura">
-          <p class="linha-assinatura">_________________________________________</p>
-          <p>Responsável pela Consolidação</p>
-        </div>
-      </footer>
     </div>
   </div>
 </template>
@@ -112,17 +111,13 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { servicoEquipes } from '@/nucleo/servicos_comuns/servicoEquipes'
-// ===================================================================
-// == CORREÇÃO 1: Importando o objeto do serviço, não a função
-// ===================================================================
-import { ServicoSCNES } from '@/modulos/gerente/servicos/ServicoSCNES'
+import { servicoAcompanhamentoGestantes } from '@/modulos/enfermeiro/servicos/ServicoAcompanhamentoGestantes.js'
 import { FileSearch, Printer, ChevronDown } from 'lucide-vue-next'
 import LogoCabecalhoImpressao from '@/nucleo/componentes/LogoCabecalhoImpressao.vue'
 
 const buscando = ref(false)
 const erroBusca = ref('')
 const dadosRelatorio = ref(null)
-
 const competencia = ref(new Date().toISOString().slice(0, 7))
 const listaEquipes = ref([])
 const equipesSelecionadas = ref([])
@@ -144,6 +139,17 @@ const competenciaFormatada = computed(() => {
 })
 const dataAtualFormatada = computed(() => new Date().toLocaleDateString('pt-BR'))
 
+const totalGeral = computed(() => {
+  if (!dadosRelatorio.value) return { total: 0, branca: 0, parda: 0, preta: 0 }
+  const { riscoHabitual, riscoIntermediario, altoRisco } = dadosRelatorio.value
+  return {
+    total: riscoHabitual.total + riscoIntermediario.total + altoRisco.total,
+    branca: riscoHabitual.branca + riscoIntermediario.branca + altoRisco.branca,
+    parda: riscoHabitual.parda + riscoIntermediario.parda + altoRisco.parda,
+    preta: riscoHabitual.preta + riscoIntermediario.preta + altoRisco.preta,
+  }
+})
+
 onMounted(async () => {
   listaEquipes.value = await servicoEquipes.buscarTodas()
 })
@@ -154,11 +160,6 @@ function toggleDropdown() {
 function toggleTodasEquipes(event) {
   equipesSelecionadas.value = event.target.checked ? listaEquipes.value.map((e) => e.id) : []
 }
-function formatarData(dataString) {
-  if (!dataString) return 'N/D'
-  const [ano, mes, dia] = dataString.split('-')
-  return `${dia}/${mes}/${ano}`
-}
 
 async function gerarRelatorio() {
   buscando.value = true
@@ -166,26 +167,32 @@ async function gerarRelatorio() {
   dadosRelatorio.value = null
   try {
     const promessas = equipesSelecionadas.value.map((equipeId) =>
-      // ===================================================================
-      // == CORREÇÃO 2: Chamando a função como um método do objeto
-      // ===================================================================
-      ServicoSCNES.carregarProfissionais(competencia.value, equipeId).then((profissionais) => ({
-        equipeId,
-        equipeNome: listaEquipes.value.find((e) => e.id === equipeId)?.nome || 'Desconhecida',
-        profissionais,
-      })),
+      servicoAcompanhamentoGestantes.buscarDados(competencia.value, equipeId),
     )
-    const resultados = await Promise.all(promessas)
-    const dadosPorEquipe = resultados.filter((r) => r.profissionais.length > 0)
+    const resultados = (await Promise.all(promessas)).filter(Boolean)
 
-    if (dadosPorEquipe.length === 0) {
-      erroBusca.value = `Nenhuma produção SCNES encontrada para as equipes na competência ${competenciaFormatada.value}.`
+    if (resultados.length === 0) {
+      erroBusca.value = `Nenhuma produção de gestantes encontrada para as equipes na competência.`
       return
     }
-    dadosRelatorio.value = { dadosPorEquipe }
+
+    const consolidado = {
+      riscoHabitual: { total: 0, branca: 0, parda: 0, preta: 0 },
+      riscoIntermediario: { total: 0, branca: 0, parda: 0, preta: 0 },
+      altoRisco: { total: 0, branca: 0, parda: 0, preta: 0 },
+    }
+
+    resultados.forEach((registro) => {
+      for (const risco in consolidado) {
+        for (const etnia in consolidado[risco]) {
+          consolidado[risco][etnia] += registro[risco]?.[etnia] || 0
+        }
+      }
+    })
+    dadosRelatorio.value = consolidado
   } catch (error) {
-    console.error('Erro ao consolidar relatório SCNES:', error)
-    erroBusca.value = 'Ocorreu um erro ao buscar e consolidar os dados do relatório.'
+    console.error('Erro ao consolidar relatório:', error)
+    erroBusca.value = 'Ocorreu um erro ao buscar os dados.'
   } finally {
     buscando.value = false
   }

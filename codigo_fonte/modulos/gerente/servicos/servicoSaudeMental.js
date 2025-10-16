@@ -8,7 +8,7 @@ import {
   arrayRemove,
   runTransaction,
   getDoc,
-} from 'firebase/firestore' // Adicionado getDoc
+} from 'firebase/firestore'
 import { v4 as uuidv4 } from 'uuid'
 
 const NOME_COLECAO = 'saudeMental'
@@ -23,18 +23,13 @@ export const servicoSaudeMental = {
       if (docSnap.exists()) {
         callback(docSnap.data())
       } else {
-        callback({ pacientes: [], acompanhamentos: {} })
+        callback({ pacientes: [], acompanhamentos: {}, agendaSaudeMental: {} })
       }
     })
   },
 
-  // ===================================================================
-  // === ADICIONADO: Nova função para buscar dados para relatórios
-  // ===================================================================
   /**
    * Busca os dados de saúde mental de uma equipe uma única vez.
-   * @param {string} equipeId - O ID da equipe.
-   * @returns {Promise<object>} Os dados da equipe.
    */
   async buscarDadosDaEquipe(equipeId) {
     const docRef = doc(db, NOME_COLECAO, equipeId)
@@ -42,9 +37,8 @@ export const servicoSaudeMental = {
     if (docSnap.exists()) {
       return docSnap.data()
     }
-    return { pacientes: [], acompanhamentos: {} }
+    return { pacientes: [], acompanhamentos: {}, agendaSaudeMental: {} }
   },
-  // ===================================================================
 
   /**
    * Adiciona um novo paciente à lista persistente da equipe.
@@ -97,5 +91,23 @@ export const servicoSaudeMental = {
     return updateDoc(docRef, {
       [campoParaAtualizar]: status,
     })
+  },
+
+  /**
+   * Salva ou atualiza a agenda de saúde mental para uma competência específica.
+   */
+  async salvarAgendaDoMes({ equipeId, competencia, dadosAgenda }) {
+    const docRef = doc(db, NOME_COLECAO, equipeId)
+    const campoParaAtualizar = `agendaSaudeMental.${competencia}`
+
+    return setDoc(
+      docRef,
+      {
+        agendaSaudeMental: {
+          [competencia]: dadosAgenda,
+        },
+      },
+      { merge: true },
+    )
   },
 }

@@ -1,5 +1,3 @@
-// codigo_fonte/nucleo/rotas/principal.js
-
 import { createRouter, createWebHistory } from 'vue-router'
 import PrincipalLayout from '@/nucleo/layouts/PrincipalLayout.vue'
 import PaginaLogin from '@/nucleo/autenticacao/PaginaLogin.vue'
@@ -29,6 +27,12 @@ import PaginaImpressaoMDDAAdmin from '@/modulos/administrador/paginas/PaginaImpr
 import PaginaImpressaoNotificacaoAdmin from '@/modulos/administrador/paginas/PaginaImpressaoNotificacaoAdmin.vue'
 import PaginaImpressaoSarampoAdmin from '@/modulos/administrador/paginas/PaginaImpressaoSarampoAdmin.vue'
 import PaginaImpressaoSCNESAdmin from '@/modulos/administrador/paginas/PaginaImpressaoSCNESAdmin.vue'
+import PaginaImpressaoCronogramaAdmin from '@/modulos/administrador/paginas/PaginaImpressaoCronogramaAdmin.vue'
+import PaginaImpressaoAdolescenteAdmin from '@/modulos/administrador/paginas/PaginaImpressaoAdolescenteAdmin.vue'
+import PaginaImpressaoSuplementosAdmin from '@/modulos/administrador/paginas/PaginaImpressaoSuplementosAdmin.vue'
+import PaginaImpressaoGestantesAdmin from '@/modulos/administrador/paginas/PaginaImpressaoGestantesAdmin.vue'
+import DashboardEstoque from '@/modulos/administrador/paginas/DashboardEstoque.vue'
+import DashboardSaudeMental from '@/modulos/administrador/paginas/DashboardSaudeMental.vue'
 
 // Import das páginas do Gerente
 import PaginaProducaoGerente from '@/modulos/gerente/paginas/PaginaProducaoGerente.vue'
@@ -79,6 +83,12 @@ const PaginaImpressaoNotificacao = () =>
   import('@/modulos/enfermeiro/paginas/PaginaImpressaoNotificacao.vue')
 const PaginaImpressaoSarampo = () =>
   import('@/modulos/enfermeiro/paginas/PaginaImpressaoSarampo.vue')
+const PaginaCronogramaEnfermeiro = () =>
+  import('@/modulos/enfermeiro/paginas/PaginaCronogramaEnfermeiro.vue')
+const PaginaImpressaoCronograma = () =>
+  import('@/modulos/enfermeiro/paginas/PaginaImpressaoCronograma.vue')
+const PaginaPreviewCronograma = () =>
+  import('@/modulos/enfermeiro/paginas/PaginaPreviewCronograma.vue')
 
 const routes = [
   {
@@ -117,6 +127,16 @@ const routes = [
         meta: {
           roles: ['Administrador', 'Coordenador'],
           titulo: 'Acompanhamento Mensal',
+          menuPai: 'producao',
+        },
+      },
+      {
+        path: 'admin/producao/dashboard-saude-mental',
+        name: 'AdminDashboardSaudeMental',
+        component: DashboardSaudeMental,
+        meta: {
+          roles: ['Administrador', 'Coordenador'],
+          titulo: 'Dashboard de Saúde Mental',
           menuPai: 'producao',
         },
       },
@@ -213,6 +233,12 @@ const routes = [
         meta: { roles: ['Administrador'], menuPai: 'estoque' },
       },
       {
+        path: 'admin/estoque/dashboard',
+        name: 'AdminDashboardEstoque',
+        component: DashboardEstoque,
+        meta: { roles: ['Administrador'], titulo: 'Dashboard de Estoque', menuPai: 'estoque' },
+      },
+      {
         path: 'admin/estoque/entrada',
         name: 'AdminEntradaEstoque',
         component: PaginaEntradaEstoque,
@@ -270,7 +296,46 @@ const routes = [
           menuPai: 'producao',
         },
       },
-
+      {
+        path: 'admin/impressoes/cronograma',
+        name: 'AdminImpressaoCronograma',
+        component: PaginaImpressaoCronogramaAdmin,
+        meta: {
+          roles: ['Administrador', 'Coordenador'],
+          titulo: 'Impressão Consolidada - Cronograma',
+          menuPai: 'producao',
+        },
+      },
+      {
+        path: 'admin/impressoes/adolescente',
+        name: 'AdminImpressaoAdolescente',
+        component: PaginaImpressaoAdolescenteAdmin,
+        meta: {
+          roles: ['Administrador', 'Coordenador'],
+          titulo: 'Impressão Consolidada - Adolescente',
+          menuPai: 'producao',
+        },
+      },
+      {
+        path: 'admin/impressoes/suplementos',
+        name: 'AdminImpressaoSuplementos',
+        component: PaginaImpressaoSuplementosAdmin,
+        meta: {
+          roles: ['Administrador', 'Coordenador'],
+          titulo: 'Impressão Consolidada - Suplementos',
+          menuPai: 'producao',
+        },
+      },
+      {
+        path: 'admin/impressoes/gestantes',
+        name: 'AdminImpressaoGestantes',
+        component: PaginaImpressaoGestantesAdmin,
+        meta: {
+          roles: ['Administrador', 'Coordenador'],
+          titulo: 'Impressão Consolidada - Gestantes',
+          menuPai: 'producao',
+        },
+      },
       // --- ROTAS DO GERENTE ---
       {
         path: 'gerente/producao',
@@ -314,6 +379,12 @@ const routes = [
         name: 'EnfermeiroProducaoMensal',
         component: PaginaProducaoMensal,
         meta: { roles: ['Enfermeiro'] },
+      },
+      {
+        path: 'enfermeiro/producao-mensal/cronograma',
+        name: 'EnfermeiroCronograma',
+        component: PaginaCronogramaEnfermeiro,
+        meta: { roles: ['Enfermeiro'], titulo: 'Cronograma da Equipe' },
       },
       {
         path: 'enfermeiro/producao-semanal',
@@ -410,6 +481,18 @@ const routes = [
         name: 'EnfermeiroImpressaoSarampo',
         component: PaginaImpressaoSarampo,
         meta: { roles: ['Enfermeiro'], titulo: 'Impressão do Controle de Sarampo' },
+      },
+      {
+        path: 'enfermeiro/impressoes/cronograma',
+        name: 'EnfermeiroImpressaoCronograma',
+        component: PaginaImpressaoCronograma,
+        meta: { roles: ['Enfermeiro'], titulo: 'Impressão do Cronograma' },
+      },
+      {
+        path: 'enfermeiro/impressoes/cronograma/preview',
+        name: 'EnfermeiroPreviewCronograma',
+        component: PaginaPreviewCronograma,
+        meta: { roles: ['Enfermeiro'], titulo: 'Pré-visualização do Cronograma' },
       },
       {
         path: 'enfermeiro/producao-mensal/boletim',

@@ -49,8 +49,9 @@ const modulosMensais = [
   { nome: 'Saúde do Adolescente', chavePrazo: 'adolescente' },
   { nome: 'Acompanhamento de Gestantes', chavePrazo: 'gestantes' },
   { nome: 'SCNES (Cadastro de Profissionais)', chavePrazo: 'scnes' },
-  // ADICIONADO: Nova entrada para o módulo de Saúde Mental
   { nome: 'Saúde Mental', chavePrazo: 'saudeMental' },
+  // ADICIONADO: Nova entrada para o módulo de Cronograma
+  { nome: 'Cronograma da Equipe', chavePrazo: 'cronograma' },
 ]
 
 let unsubscribe = null

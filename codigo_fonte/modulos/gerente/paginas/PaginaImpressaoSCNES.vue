@@ -95,8 +95,10 @@
 import { ref, onMounted, computed } from 'vue'
 import { useStoreUsuario } from '@/nucleo/autenticacao/storeUsuario'
 import { servicoEquipes } from '@/nucleo/servicos_comuns/servicoEquipes'
-// CORRIGIDO: Importando a função 'carregarProfissionais' diretamente.
-import { carregarProfissionais } from '@/modulos/gerente/servicos/ServicoSCNES'
+// ===================================================================
+// == CORREÇÃO 1: Importando o objeto do serviço, não a função
+// ===================================================================
+import { ServicoSCNES } from '@/modulos/gerente/servicos/ServicoSCNES'
 import { FileSearch, Printer } from 'lucide-vue-next'
 import LogoCabecalhoImpressao from '@/nucleo/componentes/LogoCabecalhoImpressao.vue'
 
@@ -129,8 +131,13 @@ async function gerarRelatorio() {
   erroBusca.value = ''
   dadosRelatorio.value = null
   try {
-    // CORRIGIDO: Chamando a função 'carregarProfissionais' diretamente.
-    const profissionais = await carregarProfissionais(competencia.value, equipeIdSelecionada.value)
+    // ===================================================================
+    // == CORREÇÃO 2: Chamando a função como um método do objeto importado
+    // ===================================================================
+    const profissionais = await ServicoSCNES.carregarProfissionais(
+      competencia.value,
+      equipeIdSelecionada.value,
+    )
 
     if (profissionais && profissionais.length > 0) {
       const equipe = listaEquipes.value.find((e) => e.id === equipeIdSelecionada.value)
@@ -161,7 +168,6 @@ function imprimirPagina() {
 </script>
 
 <style scoped>
-/* Estilos fieis ao exemplo PaginaImpressaoMDDAAdmin.vue */
 @page {
   size: A4 portrait;
   margin: 1.5cm;
@@ -187,7 +193,6 @@ function imprimirPagina() {
   min-width: 220px;
   height: 42px;
 }
-
 .pagina-a4 {
   background: white;
   width: 21cm;

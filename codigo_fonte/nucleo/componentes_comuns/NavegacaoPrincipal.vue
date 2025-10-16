@@ -6,10 +6,7 @@
         @mouseleave="fecharMenu"
         :class="{ 'menu-ativo': menuPrincipalAtivo === 'producao' }"
       >
-        <a @click.prevent="toggleMenu('producao')">
-          <BarChart3 :size="18" />
-          <span>Produção</span>
-        </a>
+        <a><BarChart3 :size="18" /><span>Produção</span></a>
         <ul class="submenu" v-show="menuAberto === 'producao'">
           <li>
             <router-link :to="{ name: 'AdminAcompanhamentoSemanal' }"
@@ -22,6 +19,11 @@
             >
           </li>
           <li>
+            <router-link :to="{ name: 'AdminDashboardSaudeMental' }"
+              >Dashboard de Saúde Mental</router-link
+            >
+          </li>
+          <li>
             <router-link :to="{ name: 'AdminImpressoes' }">Central de Impressões</router-link>
           </li>
         </ul>
@@ -31,10 +33,7 @@
         @mouseleave="fecharMenu"
         :class="{ 'menu-ativo': menuPrincipalAtivo === 'cadastros' }"
       >
-        <a>
-          <Users :size="18" />
-          <span>Cadastros</span>
-        </a>
+        <a><Users :size="18" /><span>Cadastros</span></a>
         <ul class="submenu" v-show="menuAberto === 'cadastros'">
           <li><router-link :to="{ name: 'AdminGerenciarUbs' }">Gerenciar UBS</router-link></li>
           <li>
@@ -74,6 +73,9 @@
         <a><Boxes :size="18" /><span>Estoque</span></a>
         <ul class="submenu" v-show="menuAberto === 'estoque'">
           <li>
+            <router-link :to="{ name: 'AdminDashboardEstoque' }">Dashboard de Estoque</router-link>
+          </li>
+          <li>
             <router-link :to="{ name: 'AdminControleEstoque' }">Consultar Estoque</router-link>
           </li>
           <li>
@@ -99,10 +101,7 @@
         @mouseleave="fecharMenu"
         :class="{ 'menu-ativo': menuPrincipalAtivo === 'configuracoes' }"
       >
-        <a>
-          <Settings :size="18" />
-          <span>Configurações</span>
-        </a>
+        <a><Settings :size="18" /><span>Configurações</span></a>
         <ul class="submenu" v-show="menuAberto === 'configuracoes'">
           <li>
             <router-link :to="{ name: 'AdminControlePrazos' }">Prazos do Sistema</router-link>
@@ -117,10 +116,7 @@
         @mouseleave="fecharMenu"
         :class="{ 'menu-ativo': menuPrincipalAtivo === 'producao' }"
       >
-        <a @click.prevent="toggleMenu('producao')">
-          <BarChart3 :size="18" />
-          <span>Produção</span>
-        </a>
+        <a><BarChart3 :size="18" /><span>Produção</span></a>
         <ul class="submenu" v-show="menuAberto === 'producao'">
           <li>
             <router-link :to="{ name: 'AdminAcompanhamentoSemanal' }"
@@ -130,6 +126,11 @@
           <li>
             <router-link :to="{ name: 'AdminAcompanhamentoMensal' }"
               >Acompanhamento Mensal</router-link
+            >
+          </li>
+          <li>
+            <router-link :to="{ name: 'AdminDashboardSaudeMental' }"
+              >Dashboard de Saúde Mental</router-link
             >
           </li>
           <li>
@@ -193,6 +194,14 @@
         </router-link>
       </li>
     </ul>
+
+    <ul v-if="storeUsuario.ehAcs">
+      <li>
+        <router-link :to="{ name: 'AcsProducaoRegistrar' }">
+          <Stethoscope :size="18" /><span>Minha Produção</span>
+        </router-link>
+      </li>
+    </ul>
   </nav>
 </template>
 
@@ -211,6 +220,9 @@ import {
   Printer,
   ShoppingBasket,
   BarChart3,
+  LayoutDashboard,
+  // --- ADIÇÃO CIRÚRGICA DO ÍCONE ---
+  Stethoscope,
 } from 'lucide-vue-next'
 
 const storeUsuario = useStoreUsuario()
@@ -237,6 +249,7 @@ function toggleMenu(nomeMenu) {
 </script>
 
 <style scoped>
+/* Estilos existentes do seu componente (não foram alterados) */
 .navegacao-principal {
   display: flex;
   height: 100%;

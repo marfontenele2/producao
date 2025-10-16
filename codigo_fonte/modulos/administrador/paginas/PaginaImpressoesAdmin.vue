@@ -30,9 +30,22 @@
           <BrainCircuit :size="32" />
           <span class="card-titulo">Acompanhamento de Saúde Mental</span>
         </div>
-        <div class="card-impressao card-desabilitado">
-          <Printer :size="32" />
-          <span class="card-titulo">Relatório do Adolescente (Em breve)</span>
+        <div class="card-impressao" @click="navegarPara('AdminImpressaoCronograma')">
+          <CalendarClock :size="32" />
+          <span class="card-titulo">Consolidado de Cronogramas</span>
+        </div>
+
+        <div class="card-impressao" @click="navegarPara('AdminImpressaoAdolescente')">
+          <Bot :size="32" />
+          <span class="card-titulo">Saúde do Adolescente</span>
+        </div>
+        <div class="card-impressao" @click="navegarPara('AdminImpressaoSuplementos')">
+          <ShieldPlus :size="32" />
+          <span class="card-titulo">Acompanhamento de Suplementos</span>
+        </div>
+        <div class="card-impressao" @click="navegarPara('AdminImpressaoGestantes')">
+          <Baby :size="32" />
+          <span class="card-titulo">Acompanhamento de Gestantes</span>
         </div>
       </div>
     </div>
@@ -46,8 +59,12 @@ import {
   FileWarning,
   ClipboardX,
   ClipboardList,
-  Printer,
   BrainCircuit,
+  CalendarClock,
+  // NOVOS ÍCONES ADICIONADOS
+  Bot,
+  ShieldPlus,
+  Baby,
 } from 'lucide-vue-next'
 
 const router = useRouter()

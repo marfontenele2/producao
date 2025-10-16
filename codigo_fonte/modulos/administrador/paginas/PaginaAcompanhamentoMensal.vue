@@ -14,6 +14,31 @@
           class="input-padrao"
         />
       </div>
+
+      <div class="campo">
+        <label>Equipes</label>
+        <div class="dropdown-multiselect">
+          <button @click="toggleDropdown" class="input-padrao dropdown-botao">
+            <span>{{ dropdownLabel }}</span>
+            <ChevronDown :size="16" :class="{ 'dropdown-aberto': isDropdownOpen }" />
+          </button>
+          <div v-if="isDropdownOpen" class="dropdown-painel">
+            <label>
+              <input
+                type="checkbox"
+                @change="toggleTodasEquipes"
+                :checked="todasEquipesSelecionadas"
+              />
+              <strong>(Marcar/Desmarcar Todas)</strong>
+            </label>
+            <label v-for="equipe in todasAsEquipes" :key="equipe.id">
+              <input type="checkbox" :value="equipe.id" v-model="equipesSelecionadas" />
+              {{ equipe.nome }}
+            </label>
+          </div>
+        </div>
+      </div>
+
       <div class="campo">
         <label for="filtro-producao">Filtrar Produção</label>
         <select id="filtro-producao" v-model="filtroProducao" class="input-padrao">
@@ -62,32 +87,60 @@ import { ref, watch, computed } from 'vue'
 import { servicoEquipes } from '@/nucleo/servicos_comuns/servicoEquipes'
 import { servicoVerificacaoProducao } from '@/modulos/enfermeiro/servicos/servicoVerificacaoProducao'
 import IndicadorStatusProducao from '@/modulos/enfermeiro/componentes/IndicadorStatusProducao.vue'
-import { LoaderCircle } from 'lucide-vue-next'
+import { LoaderCircle, ChevronDown } from 'lucide-vue-next'
 
 const carregando = ref(true)
 const competenciaSelecionada = ref(new Date().toISOString().slice(0, 7))
 const filtroProducao = ref('todas')
 const filtroStatus = ref('todos')
 const equipesComStatus = ref([])
+const todasAsEquipes = ref([])
 
-// MODIFICADO: Lista de módulos agora inclui Saúde Mental e está ordenada
+const equipesSelecionadas = ref([])
+const isDropdownOpen = ref(false)
+
 const modulosMensais = [
   { nome: 'Adolescente', chave: 'adolescente' },
+  { nome: 'Boletim de Testes', chave: 'boletimTestesRapidos' },
   { nome: 'BPA', chave: 'bpa' },
+  { nome: 'Cronograma', chave: 'cronograma' },
   { nome: 'Educação Permanente', chave: 'educacaoPermanente' },
   { nome: 'Gestantes', chave: 'gestantes' },
   { nome: 'Saúde Mental', chave: 'saudeMental' },
   { nome: 'SCNES', chave: 'scnes' },
   { nome: 'Suplementos', chave: 'suplementos' },
-]
+].sort((a, b) => a.nome.localeCompare(b.nome))
+
+const todasEquipesSelecionadas = computed(
+  () =>
+    todasAsEquipes.value.length > 0 &&
+    equipesSelecionadas.value.length === todasAsEquipes.value.length,
+)
+const dropdownLabel = computed(() => {
+  if (equipesSelecionadas.value.length === 0) return 'Todas as equipes'
+  if (equipesSelecionadas.value.length === 1) return '1 equipe selecionada'
+  return `${equipesSelecionadas.value.length} equipes selecionadas`
+})
+function toggleDropdown() {
+  isDropdownOpen.value = !isDropdownOpen.value
+}
+function toggleTodasEquipes(event) {
+  equipesSelecionadas.value = event.target.checked ? todasAsEquipes.value.map((e) => e.id) : []
+}
 
 const buscarStatusProducao = async (competencia) => {
   if (!competencia) return
   carregando.value = true
 
-  const todasEquipes = await servicoEquipes.buscarTodas()
+  if (todasAsEquipes.value.length === 0) {
+    const equipesBuscadas = await servicoEquipes.buscarTodas()
+    // ======================================================================================
+    // == ALTERAÇÃO CIRÚRGICA: Garante a ordenação alfabética pelo nome da equipe.
+    // ======================================================================================
+    todasAsEquipes.value = equipesBuscadas.sort((a, b) => a.nome.localeCompare(b.nome))
+  }
 
-  const promessasStatus = todasEquipes.map(async (equipe) => {
+  const promessasStatus = todasAsEquipes.value.map(async (equipe) => {
     const promessasModulos = modulosMensais.map(async (modulo) => {
       const foiEntregue = await servicoVerificacaoProducao.verificarEntregaMensal(
         competencia,
@@ -107,6 +160,10 @@ const buscarStatusProducao = async (competencia) => {
 
 const equipesFiltradas = computed(() => {
   return equipesComStatus.value
+    .filter((equipe) => {
+      if (equipesSelecionadas.value.length === 0) return true
+      return equipesSelecionadas.value.includes(equipe.id)
+    })
     .map((equipe) => {
       const modulosParaExibir =
         filtroProducao.value === 'todas'
@@ -132,7 +189,6 @@ watch(competenciaSelecionada, buscarStatusProducao, { immediate: true })
 </script>
 
 <style scoped>
-/* Nenhum estilo precisa ser alterado aqui */
 .card-filtros {
   padding: 1.5rem;
   display: flex;
@@ -164,13 +220,24 @@ watch(competenciaSelecionada, buscarStatusProducao, { immediate: true })
   font-size: 1.2rem;
   color: var(--cor-texto-padrao);
 }
+.animate-spin {
+  animation: spin 1.5s linear infinite;
+}
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
 .grid-acompanhamento {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 1.5rem;
 }
 .aviso-sem-dados {
-  width: 100%;
+  grid-column: 1 / -1;
   text-align: center;
   padding: 2rem;
   background-color: #fff;
@@ -214,5 +281,50 @@ watch(competenciaSelecionada, buscarStatusProducao, { immediate: true })
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+/* ESTILOS PARA O DROPDOWN */
+.dropdown-multiselect {
+  position: relative;
+}
+.dropdown-botao {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  background-color: white;
+  cursor: pointer;
+}
+.dropdown-botao svg {
+  transition: transform 0.2s;
+}
+.dropdown-botao .dropdown-aberto {
+  transform: rotate(180deg);
+}
+.dropdown-painel {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  width: 300px;
+  max-height: 250px;
+  overflow-y: auto;
+  background-color: #fff;
+  border: 1px solid var(--cor-borda-suave);
+  border-radius: 6px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+  padding: 0.5rem;
+}
+.dropdown-painel label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.dropdown-painel label:hover {
+  background-color: #f8fafc;
 }
 </style>

@@ -1,4 +1,3 @@
-// producao-nova/codigo_fonte/nucleo/servicos_comuns/servicoUbs.js
 import { db } from '@/nucleo/configuracao/firebase'
 import {
   collection,
@@ -9,12 +8,24 @@ import {
   updateDoc,
   deleteDoc,
   doc,
+  getDocs, // Adicionado para a nova função
 } from 'firebase/firestore'
 
 /**
  * Serviço para gerenciar as operações de CRUD para as Unidades Básicas de Saúde (UBS).
  */
 export const servicoUbs = {
+  /**
+   * ADICIONADO: Busca todas as UBS uma única vez, ordenando por nome.
+   * Ideal para preencher filtros e seletores.
+   * @returns {Promise<Array<object>>} Uma lista de todas as UBS.
+   */
+  async buscarTodas() {
+    const q = query(collection(db, 'ubs'), orderBy('nome'))
+    const querySnapshot = await getDocs(q)
+    return querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+  },
+
   /**
    * Monitora a coleção de UBS em tempo real, ordenando por nome.
    * @param {function(Array<object>): void} callback - Função que recebe a lista de UBS atualizada.
