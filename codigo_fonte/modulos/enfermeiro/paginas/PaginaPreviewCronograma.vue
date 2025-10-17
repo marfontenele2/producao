@@ -3,9 +3,7 @@
     <header class="pagina-cabecalho no-print">
       <h1>Pré-visualização do Cronograma</h1>
       <div class="botoes-acao-cabecalho" v-if="dados">
-        <button class="botao botao-acao" @click="voltar">
-          <ArrowLeft :size="18" /> Voltar para Filtros
-        </button>
+        <button class="botao botao-acao" @click="voltar"><ArrowLeft :size="18" /> Voltar</button>
         <button class="botao botao-primario" @click="imprimirPagina">
           <Printer :size="18" /> Imprimir
         </button>
@@ -19,7 +17,7 @@
           <h3>CRONOGRAMA MENSAL DE ATIVIDADES DA EQUIPE</h3>
           <div class="info-cabecalho-grid">
             <span><strong>Município:</strong> GRANJA</span>
-            <span><strong>Competência:</strong> {{ competenciaFormatada }}</span>
+            <span><strong>Mês de Referência:</strong> {{ competenciaFormatada }}</span>
             <span><strong>Equipe:</strong> {{ dados.infoEquipe.nomeEquipe }}</span>
             <span><strong>UBS:</strong> {{ dados.infoEquipe.nomeUbs }}</span>
           </div>
@@ -28,24 +26,15 @@
         <div class="legenda-icones">
           <strong>Legenda:</strong>
           <div v-for="categoria in categorias" :key="categoria.nome" class="legenda-item">
-            <component :is="categoria.icone" :size="16" />
+            <span class="letra-categoria-legenda" :class="categoria.classeCss">{{
+              categoria.letra
+            }}</span>
             <span>{{ categoria.nome }}</span>
           </div>
         </div>
 
         <main class="corpo-impressao">
-          <FullCalendar :options="calendarOptions">
-            <template #eventContent="{ event }">
-              <component
-                :is="getIconeParaCategoria(event.extendedProps.categoriaProfissional)"
-                :size="14"
-                class="icone-evento"
-              />
-              <div class="fc-event-title">
-                {{ event.title }}
-              </div>
-            </template>
-          </FullCalendar>
+          <FullCalendar :options="calendarOptions" />
         </main>
 
         <footer class="rodape-impressao">
@@ -57,66 +46,89 @@
         </footer>
       </div>
     </div>
-
     <div v-else class="conteudo-card">
-      <p>Dados de impressão não encontrados. Redirecionando para a página de filtros...</p>
+      <p>Dados de impressão não encontrados. Redirecionando...</p>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed, reactive, h } from 'vue'
+import { ref, onMounted, computed, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useStoreImpressao } from '@/nucleo/stores/storeImpressao'
 import LogoCabecalhoImpressao from '@/nucleo/componentes/LogoCabecalhoImpressao.vue'
 import FullCalendar from '@fullcalendar/vue3'
 import dayGridPlugin from '@fullcalendar/daygrid'
-import { Printer, ArrowLeft, Stethoscope, HeartPulse, Syringe, User } from 'lucide-vue-next'
+import { Printer, ArrowLeft } from 'lucide-vue-next'
+import { startOfMonth, endOfMonth, addDays } from 'date-fns'
 
 const storeImpressao = useStoreImpressao()
 const router = useRouter()
 const dados = ref(null)
 
 const categorias = [
-  { nome: 'Enfermeiro', icone: Stethoscope },
-  { nome: 'Médico', icone: HeartPulse },
-  { nome: 'Técnico de Enfermagem', icone: Syringe },
-  { nome: 'Outros', icone: User },
+  { nome: 'Enfermeiro', letra: 'E', classeCss: 'cor-enf' },
+  { nome: 'Médico', letra: 'M', classeCss: 'cor-med' },
+  { nome: 'Técnico de Enfermagem', letra: 'T', classeCss: 'cor-tec' },
+  { nome: 'Gerente', letra: 'G', classeCss: 'cor-ger' },
+  { nome: 'Outros', letra: 'O', classeCss: 'cor-outros' },
 ]
-function getIconeParaCategoria(categoria) {
-  const item = categorias.find((c) => c.nome === categoria)
-  return item ? item.icone : User
-}
 
 const calendarOptions = reactive({
   plugins: [dayGridPlugin],
   initialView: 'dayGridMonth',
   locale: 'pt-br',
-  headerToolbar: { left: '', center: 'title', right: '' },
+  headerToolbar: false,
   events: [],
   height: 'auto',
   showNonCurrentDates: false,
-  // A opção para mostrar apenas dias úteis foi mantida
   weekends: false,
-  // A propriedade 'eventContent' foi removida daqui para corrigir o bug
+  validRange: {},
+  eventContent: (arg) => {
+    const estilo = getEstiloParaCategoria(arg.event.extendedProps.categoriaProfissional)
+    const container = document.createElement('div')
+    container.className = 'evento-customizado-impressao'
+    container.innerHTML = `
+      <span class="letra-categoria-evento ${estilo.classeCss}">${estilo.letra}</span>
+      <div class="fc-event-title">${arg.event.title}</div>
+    `
+    return { domNodes: [container] }
+  },
 })
 
+function getEstiloParaCategoria(cargo) {
+  const item = categorias.find((c) => c.nome === cargo)
+  return item
+    ? { letra: item.letra, classeCss: item.classeCss }
+    : { letra: 'O', classeCss: 'cor-outros' }
+}
+
 const competenciaFormatada = computed(() => {
-  if (!dados.value?.competencia) return ''
-  const [ano, mes] = dados.value.competencia.split('-')
-  return `${mes}/${ano}`
+  if (!dados.value?.competenciaCalendario) return ''
+  const [ano, mes] = dados.value.competenciaCalendario.split('-')
+  const data = new Date(ano, parseInt(mes) - 1, 15)
+  const nomeMes = data.toLocaleString('pt-BR', { month: 'long' })
+  return `${nomeMes.charAt(0).toUpperCase() + nomeMes.slice(1)} de ${ano}`
 })
 
 onMounted(() => {
   const dadosDoStore = storeImpressao.dadosParaImpressao
-  if (!dadosDoStore || dadosDoStore.tipo !== 'cronograma') {
+  if (!dadosDoStore || dadosDoStore.tipo !== 'cronograma' || !dadosDoStore.competenciaCalendario) {
     router.push({ name: 'EnfermeiroImpressaoCronograma' })
     return
   }
-
   dados.value = dadosDoStore
-  calendarOptions.initialDate = dados.value.competencia
-  calendarOptions.events = dados.value.eventos.map((e) => ({
+
+  const dataCalendario = new Date(`${dadosDoStore.competenciaCalendario}-15T12:00:00`)
+
+  calendarOptions.validRange = {
+    start: startOfMonth(dataCalendario),
+    end: addDays(endOfMonth(dataCalendario), 1),
+  }
+
+  calendarOptions.initialDate = dadosDoStore.competenciaCalendario
+
+  calendarOptions.events = dadosDoStore.eventos.map((e) => ({
     id: e.id,
     title: e.titulo,
     start: e.data,
@@ -173,6 +185,7 @@ function voltar() {
   display: flex;
   gap: 1.5rem;
   justify-content: center;
+  align-items: center;
   padding: 0.75rem 0;
   font-size: 9pt;
   border-bottom: 1px solid #ccc;
@@ -200,8 +213,46 @@ function voltar() {
 .assinatura p {
   margin: 2px 0;
 }
-
-/* As regras de CSS robustas para quebra de texto foram mantidas */
+.letra-categoria-legenda,
+.letra-categoria-evento {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-weight: 700;
+  color: white;
+}
+.letra-categoria-legenda {
+  width: 16px;
+  height: 16px;
+  font-size: 11px;
+}
+.letra-categoria-evento {
+  width: 14px;
+  height: 14px;
+  font-size: 10px;
+  flex-shrink: 0;
+}
+.cor-enf {
+  background-color: #3b82f6;
+}
+.cor-med {
+  background-color: #16a34a;
+}
+.cor-tec {
+  background-color: #f97316;
+}
+.cor-ger {
+  background-color: #6d28d9;
+}
+.cor-outros {
+  background-color: #64748b;
+}
+:deep(.evento-customizado-impressao) {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
 :deep(.fc-daygrid-day-frame) {
   min-height: 110px;
 }
@@ -215,17 +266,6 @@ function voltar() {
   overflow: visible;
   display: block;
 }
-/* Este seletor foi alterado para o que o slot gera */
-:deep(.fc-event-main-frame) {
-  display: flex;
-  align-items: flex-start;
-  gap: 5px;
-}
-:deep(.icone-evento) {
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-
 @media print {
   .no-print {
     display: none !important;

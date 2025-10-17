@@ -5,7 +5,7 @@
     </header>
     <div class="conteudo-card card-filtros">
       <div class="campo">
-        <label for="competencia">Competência</label>
+        <label for="competencia">Selecione a Competência</label>
         <input type="month" id="competencia" v-model="competencia" class="input-padrao" />
       </div>
       <div class="campo">
@@ -38,6 +38,7 @@ import { useRouter } from 'vue-router'
 import { useStoreUsuario } from '@/nucleo/autenticacao/storeUsuario'
 import { useStoreImpressao } from '@/nucleo/stores/storeImpressao'
 import { servicoCronograma } from '../servicos/servicoCronograma'
+import { addMonths, format } from 'date-fns'
 import { FileSearch } from 'lucide-vue-next'
 
 const storeUsuario = useStoreUsuario()
@@ -56,18 +57,23 @@ async function prepararRelatorio() {
     const equipeId = storeUsuario.usuario?.equipeId
     if (!equipeId) throw new Error('ID da equipe não encontrado.')
 
+    // 1. Busca os eventos usando a competência selecionada (ex: Outubro)
     const eventos = await servicoCronograma.buscarCronograma(competencia.value, equipeId)
 
-    if (!eventos || eventos.length === 0) {
-      erroBusca.value = 'Nenhum evento encontrado no cronograma para esta competência.'
-      return
-    }
+    // ======================================================================================
+    // 💥 CORREÇÃO CRÍTICA: LÓGICA DO MÊS SEGUINTE
+    // Calculamos qual é a competência que o calendário deve EXIBIR (Novembro)
+    // ======================================================================================
+    const [ano, mes] = competencia.value.split('-').map(Number)
+    const dataProximoMes = addMonths(new Date(ano, mes - 1, 1), 1)
+    const competenciaParaCalendario = format(dataProximoMes, 'yyyy-MM')
+    // ======================================================================================
 
-    // Salva os dados no store temporário
     storeImpressao.setDados({
       tipo: 'cronograma',
       eventos: eventos,
-      competencia: competencia.value,
+      competencia: competencia.value, // Mantém o ID original para rastreabilidade
+      competenciaCalendario: competenciaParaCalendario, // <-- NOVO: A competência que o preview DEVE renderizar
       nomeAssinante: nomeAssinante.value,
       infoEquipe: {
         nomeEquipe: storeUsuario.usuario?.nomeEquipe,
@@ -75,9 +81,9 @@ async function prepararRelatorio() {
       },
     })
 
-    // Navega para a página de pré-visualização
     router.push({ name: 'EnfermeiroPreviewCronograma' })
   } catch (error) {
+    console.error('Erro ao preparar relatório:', error)
     erroBusca.value = 'Ocorreu um erro ao buscar os dados do relatório.'
   } finally {
     buscando.value = false
@@ -86,7 +92,6 @@ async function prepararRelatorio() {
 </script>
 
 <style scoped>
-/* Estilos permanecem simples, focados nos filtros */
 .conteudo-card.card-filtros {
   padding: 1.5rem;
   display: flex;

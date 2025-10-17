@@ -63,7 +63,7 @@
         <h3>RELATÓRIO CONSOLIDADO DE CRONOGRAMAS DE EQUIPES</h3>
         <div class="info-cabecalho-grid-cronograma">
           <span><strong>Município:</strong> GRANJA</span>
-          <span><strong>Competência:</strong> {{ competenciaFormatada }}</span>
+          <span><strong>Mês de Referência:</strong> {{ competenciaFormatada }}</span>
           <span><strong>Data de Emissão:</strong> {{ dataAtualFormatada }}</span>
         </div>
       </header>
@@ -79,7 +79,7 @@
       <main class="corpo-impressao">
         <div v-for="equipeData in dadosRelatorio" :key="equipeData.equipeId" class="secao-equipe">
           <h4 class="titulo-secao-impressao">Equipe: {{ equipeData.equipeNome }}</h4>
-          <CalendarioImpressao :competencia="competencia" :eventos="equipeData.eventos" />
+          <CalendarioImpressao :competencia="competenciaCalendario" :eventos="equipeData.eventos" />
         </div>
       </main>
 
@@ -97,7 +97,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { servicoEquipes } from '@/nucleo/servicos_comuns/servicoEquipes'
 import { servicoCronograma } from '@/modulos/enfermeiro/servicos/servicoCronograma'
-// ÍCONES PARA A LEGENDA ADICIONADOS AQUI
+import { addMonths, format } from 'date-fns'
 import {
   FileSearch,
   Printer,
@@ -110,18 +110,14 @@ import {
 import LogoCabecalhoImpressao from '@/nucleo/componentes/LogoCabecalhoImpressao.vue'
 import CalendarioImpressao from '../componentes/CalendarioImpressao.vue'
 
-// Estado dos filtros
 const competencia = ref(new Date().toISOString().slice(0, 7))
 const listaEquipes = ref([])
 const equipesSelecionadas = ref([])
 const isDropdownOpen = ref(false)
-
-// Estado de controle e dados
 const buscando = ref(false)
 const erroBusca = ref('')
 const dadosRelatorio = ref(null)
 
-// LISTA DE CATEGORIAS PARA A LEGENDA ADICIONADA AQUI
 const categoriasLegenda = [
   { nome: 'Enfermeiro', icone: Stethoscope },
   { nome: 'Médico', icone: HeartPulse },
@@ -129,7 +125,6 @@ const categoriasLegenda = [
   { nome: 'Outros', icone: User },
 ]
 
-// Computeds para UI de filtros
 const todasEquipesSelecionadas = computed(
   () =>
     listaEquipes.value.length > 0 && equipesSelecionadas.value.length === listaEquipes.value.length,
@@ -140,11 +135,19 @@ const dropdownLabel = computed(() => {
   return `${equipesSelecionadas.value.length} equipes selecionadas`
 })
 
-// Computeds para formatação na impressão
-const competenciaFormatada = computed(() => {
+const competenciaCalendario = computed(() => {
   if (!competencia.value) return ''
-  const [ano, mes] = competencia.value.split('-')
-  return `${mes}/${ano}`
+  const [ano, mes] = competencia.value.split('-').map(Number)
+  const dataProximoMes = addMonths(new Date(ano, mes - 1, 1), 1)
+  return format(dataProximoMes, 'yyyy-MM')
+})
+
+const competenciaFormatada = computed(() => {
+  if (!competenciaCalendario.value) return ''
+  const [ano, mes] = competenciaCalendario.value.split('-')
+  const data = new Date(ano, parseInt(mes) - 1, 15)
+  const nomeMes = data.toLocaleString('pt-BR', { month: 'long' })
+  return `${nomeMes.charAt(0).toUpperCase() + nomeMes.slice(1)} de ${ano}`
 })
 const dataAtualFormatada = computed(() => new Date().toLocaleDateString('pt-BR'))
 
@@ -152,7 +155,6 @@ onMounted(async () => {
   listaEquipes.value = await servicoEquipes.buscarTodas()
 })
 
-// Funções do dropdown
 function toggleDropdown() {
   isDropdownOpen.value = !isDropdownOpen.value
 }
@@ -160,7 +162,6 @@ function toggleTodasEquipes(event) {
   equipesSelecionadas.value = event.target.checked ? listaEquipes.value.map((e) => e.id) : []
 }
 
-// Lógica principal
 async function gerarRelatorio() {
   buscando.value = true
   erroBusca.value = ''
@@ -177,7 +178,7 @@ async function gerarRelatorio() {
     const relatorioFinal = resultados.filter((r) => r.eventos.length > 0)
 
     if (relatorioFinal.length === 0) {
-      erroBusca.value = `Nenhum cronograma com eventos registrados foi encontrado para as equipes selecionadas na competência ${competenciaFormatada.value}.`
+      erroBusca.value = `Nenhum cronograma com eventos registrados foi encontrado para as equipes selecionadas na competência de busca (${competencia.value}).`
       return
     }
     dadosRelatorio.value = relatorioFinal
@@ -195,7 +196,6 @@ function imprimirPagina() {
 </script>
 
 <style scoped>
-/* Estilos dos filtros (idênticos ao SCNES) */
 @page {
   size: A4 portrait;
   margin: 1.5cm;
@@ -265,8 +265,6 @@ function imprimirPagina() {
 .dropdown-painel label:hover {
   background-color: #f8fafc;
 }
-
-/* Estilos da Impressão (adaptados do SCNES para o cronograma) */
 .pagina-a4 {
   background: white;
   width: 21cm;
@@ -300,8 +298,6 @@ function imprimirPagina() {
   margin-top: 1rem;
   font-size: 9pt;
 }
-
-/* ESTILOS PARA A LEGENDA ADICIONADOS AQUI */
 .legenda-icones {
   display: flex;
   gap: 1.5rem;
@@ -318,7 +314,6 @@ function imprimirPagina() {
   align-items: center;
   gap: 0.5rem;
 }
-
 .corpo-impressao {
   padding-top: 1rem;
   flex-grow: 1;
@@ -350,8 +345,6 @@ function imprimirPagina() {
 .linha-assinatura {
   margin-bottom: 2px;
 }
-
-/* Estilos Gerais */
 .mensagem-feedback.erro {
   color: #b91c1c;
   background-color: #fee2e2;

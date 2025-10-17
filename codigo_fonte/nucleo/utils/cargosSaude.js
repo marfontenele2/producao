@@ -6,6 +6,7 @@
  * A lista está em ordem alfabética para facilitar a busca na interface do usuário.
  */
 export const cargosSaude = [
+  'Atendente de Farmácia',
   'Agente Comunitário de Saúde',
   'Agente de Combate às Endemias',
   'Assistente Social',
@@ -19,6 +20,7 @@ export const cargosSaude = [
   'Farmacêutico',
   'Fisioterapeuta',
   'Fonoaudiólogo',
+  'Gerente',
   'Médico',
   'Médico Veterinário',
   'Motorista de Ambulância', // NOVO

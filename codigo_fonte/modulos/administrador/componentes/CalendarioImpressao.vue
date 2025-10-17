@@ -2,11 +2,11 @@
   <FullCalendar :options="opcoesCalendario">
     <template #eventContent="{ event }">
       <div class="evento-customizado-impressao">
-        <span class="icone-wrapper">
-          <component
-            :is="getIconeParaCategoria(event.extendedProps.categoriaProfissional)"
-            :size="12"
-          />
+        <span
+          class="letra-categoria"
+          :class="getEstiloParaCategoria(event.extendedProps.categoriaProfissional).classeCss"
+        >
+          {{ getEstiloParaCategoria(event.extendedProps.categoriaProfissional).letra }}
         </span>
         <span class="titulo-evento">{{ event.title }}</span>
       </div>
@@ -15,12 +15,15 @@
 </template>
 
 <script setup>
-import { computed, reactive } from 'vue'
+import { computed } from 'vue'
 import FullCalendar from '@fullcalendar/vue3'
 import dayGridPlugin from '@fullcalendar/daygrid'
-import { Stethoscope, HeartPulse, Syringe, User } from 'lucide-vue-next'
 
 const props = defineProps({
+  /**
+   * ✅ REGRA DE OURO: Esta deve ser a competência de EXIBIÇÃO do calendário (mês seguinte).
+   * Ex: '2025-11'
+   */
   competencia: {
     type: String,
     required: true,
@@ -31,9 +34,19 @@ const props = defineProps({
   },
 })
 
-function getIconeParaCategoria(categoria) {
-  const mapa = { Enfermeiro: Stethoscope, Médico: HeartPulse, 'Técnico de Enfermagem': Syringe }
-  return mapa[categoria] || User
+const categorias = [
+  { nome: 'Enfermeiro', letra: 'E', classeCss: 'cor-enf' },
+  { nome: 'Médico', letra: 'M', classeCss: 'cor-med' },
+  { nome: 'Técnico de Enfermagem', letra: 'T', classeCss: 'cor-tec' },
+  { nome: 'Gerente', letra: 'G', classeCss: 'cor-ger' },
+  { nome: 'Outros', letra: 'O', classeCss: 'cor-outros' },
+]
+
+function getEstiloParaCategoria(cargo) {
+  const item = categorias.find((c) => c.nome === cargo)
+  return item
+    ? { letra: item.letra, classeCss: item.classeCss }
+    : { letra: 'O', classeCss: 'cor-outros' }
 }
 
 const opcoesCalendario = computed(() => ({
@@ -56,16 +69,35 @@ const opcoesCalendario = computed(() => ({
 </script>
 
 <style scoped>
-/* Estilos do FullCalendar para Impressão - agora isolados neste componente */
-:deep(.fc) {
-  font-size: 8pt;
+:deep(.letra-categoria) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 10px;
+  color: white;
+  flex-shrink: 0;
+  margin-top: 1px;
 }
-:deep(.fc-toolbar) {
-  display: none;
+:deep(.cor-enf) {
+  background-color: #3b82f6;
 }
-:deep(.fc-daygrid-day-frame) {
-  min-height: auto !important;
+:deep(.cor-med) {
+  background-color: #16a34a;
 }
+:deep(.cor-tec) {
+  background-color: #f97316;
+}
+:deep(.cor-ger) {
+  background-color: #6d28d9;
+}
+:deep(.cor-outros) {
+  background-color: #64748b;
+}
+
 :deep(.evento-customizado-impressao) {
   display: flex;
   align-items: flex-start;
@@ -73,13 +105,11 @@ const opcoesCalendario = computed(() => ({
   font-size: 7pt;
   line-height: 1.2;
 }
-:deep(.icone-wrapper) {
-  margin-top: 1px;
-  flex-shrink: 0;
+:deep(.titulo-evento) {
+  white-space: normal !important;
 }
 :deep(.fc-daygrid-event) {
   white-space: normal !important;
-  padding: 1px 2px;
 }
 :deep(.fc-day-today) {
   background: inherit !important;

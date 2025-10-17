@@ -6,7 +6,7 @@
 
     <div class="conteudo-card card-filtros">
       <div class="campo">
-        <label for="competencia">Competência</label>
+        <label for="competencia">Competência de Lançamento</label>
         <input id="competencia" type="month" v-model="competencia" class="input-padrao" />
       </div>
       <button class="botao botao-primario" @click="abrirModalEvento()">
@@ -20,21 +20,26 @@
         <div class="grupo-filtros">
           <label v-for="categoria in categoriasFiltro" :key="categoria.nome">
             <input type="checkbox" v-model="categoria.selecionado" />
-            <component :is="categoria.icone" :size="16" class="icone-filtro" />
+            <span class="letra-categoria-filtro" :class="categoria.classeCss">{{
+              categoria.letra
+            }}</span>
             {{ categoria.nome }}
           </label>
         </div>
       </div>
 
       <div v-if="carregando">Carregando dados...</div>
-      <FullCalendar v-else :options="calendarOptions">
+      <FullCalendar v-else :options="calendarOptions" ref="fullCalendarRef">
         <template #eventContent="arg">
           <div class="evento-customizado">
-            <component
-              :is="getIconeParaCategoria(arg.event.extendedProps.categoriaProfissional)"
-              :size="14"
-              class="icone-evento"
-            />
+            <span
+              class="letra-categoria"
+              :class="
+                getEstiloParaCategoria(arg.event.extendedProps.categoriaProfissional).classeCss
+              "
+            >
+              {{ getEstiloParaCategoria(arg.event.extendedProps.categoriaProfissional).letra }}
+            </span>
             <span class="titulo-evento">{{ arg.event.title }}</span>
           </div>
         </template>
@@ -99,12 +104,11 @@
                 </option>
               </select>
             </div>
-
             <div class="container-recorrencia" v-if="modal.modo === 'adicionar'">
               <div class="campo-checkbox">
                 <input type="checkbox" id="repetir-evento" v-model="recorrencia.ativa" />
                 <label for="repetir-evento"
-                  >Repetir na competência <strong>{{ competencia }}</strong></label
+                  >Repetir no mês de <strong>{{ competenciaVisualizadaFormatada }}</strong></label
                 >
               </div>
               <div v-if="recorrencia.ativa" class="opcoes-recorrencia">
@@ -126,6 +130,7 @@
             class="botao botao-acao excluir"
             @click="handleRemoverEvento"
             style="margin-right: auto"
+            :disabled="salvando"
           >
             <Trash2 :size="18" /> Remover Evento
           </button>
@@ -150,30 +155,17 @@
 import { ref, reactive, watch, computed } from 'vue'
 import { useStoreUsuario } from '@/nucleo/autenticacao/storeUsuario'
 import { useStoreNotificacoes } from '@/nucleo/notificacoes/storeNotificacoes'
-// ===================================================================
-// == CORREÇÃO 1: Importando o objeto do serviço, não a função avulsa
-// ===================================================================
 import { ServicoSCNES } from '@/modulos/gerente/servicos/ServicoSCNES'
 import { servicoCronograma } from '../servicos/servicoCronograma'
 import { v4 as uuidv4 } from 'uuid'
 import FullCalendar from '@fullcalendar/vue3'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import interactionPlugin from '@fullcalendar/interaction'
-import {
-  CalendarPlus,
-  Save,
-  X,
-  Trash2,
-  Stethoscope,
-  HeartPulse,
-  Syringe,
-  User,
-  LoaderCircle,
-} from 'lucide-vue-next'
+import { addMonths, format } from 'date-fns'
+import { CalendarPlus, Save, X, Trash2, LoaderCircle } from 'lucide-vue-next'
 
 const storeUsuario = useStoreUsuario()
 const storeNotificacoes = useStoreNotificacoes()
-
 const competencia = ref(new Date().toISOString().slice(0, 7))
 const carregando = ref(true)
 const salvando = ref(false)
@@ -181,6 +173,7 @@ const profissionaisDaEquipe = ref([])
 const eventosMaster = ref([])
 const modal = reactive({ visivel: false, modo: 'adicionar' })
 const eventoEmEdicao = ref({})
+const fullCalendarRef = ref(null)
 const recorrencia = reactive({ ativa: false, dias: [] })
 const diasDaSemana = [
   { label: 'D', valor: 0 },
@@ -193,36 +186,37 @@ const diasDaSemana = [
 ]
 
 const categoriasFiltro = reactive([
-  { nome: 'Enfermeiro', selecionado: true, icone: Stethoscope },
-  { nome: 'Médico', selecionado: true, icone: HeartPulse },
-  { nome: 'Técnico de Enfermagem', selecionado: true, icone: Syringe },
-  { nome: 'Outros', selecionado: true, icone: User },
+  { nome: 'Enfermeiro', letra: 'E', selecionado: true, classeCss: 'cor-enf' },
+  { nome: 'Médico', letra: 'M', selecionado: true, classeCss: 'cor-med' },
+  { nome: 'Técnico de Enfermagem', letra: 'T', selecionado: true, classeCss: 'cor-tec' },
+  { nome: 'Gerente', letra: 'G', selecionado: true, classeCss: 'cor-ger' },
+  { nome: 'Outros', letra: 'O', selecionado: true, classeCss: 'cor-outros' },
 ])
 
-function getIconeParaCategoria(categoria) {
-  const mapa = { Enfermeiro: Stethoscope, Médico: HeartPulse, 'Técnico de Enfermagem': Syringe }
-  return mapa[categoria] || User
+function getEstiloParaCategoria(cargo) {
+  const mapa = {
+    Enfermeiro: { letra: 'E', classeCss: 'cor-enf' },
+    Médico: { letra: 'M', classeCss: 'cor-med' },
+    'Técnico de Enfermagem': { letra: 'T', classeCss: 'cor-tec' },
+    Gerente: { letra: 'G', classeCss: 'cor-ger' },
+  }
+  return mapa[cargo] || { letra: 'O', classeCss: 'cor-outros' }
 }
 
 const eventosFiltrados = computed(() => {
   const categoriasSelecionadas = categoriasFiltro.filter((c) => c.selecionado).map((c) => c.nome)
-  const eventosFormatados = eventosMaster.value.map((e) => ({
-    id: e.id,
-    title: e.titulo,
-    start: e.data,
-    extendedProps: e,
-  }))
-
-  return eventosFormatados.filter((evento) => {
-    const categoriaDoEvento = evento.extendedProps.categoriaProfissional
-    if (categoriasSelecionadas.includes(categoriaDoEvento)) return true
-    if (
-      !['Enfermeiro', 'Médico', 'Técnico de Enfermagem'].includes(categoriaDoEvento) &&
-      categoriasSelecionadas.includes('Outros')
-    )
-      return true
-    return false
-  })
+  return eventosMaster.value
+    .map((e) => ({ id: e.id, title: e.titulo, start: e.data, extendedProps: e }))
+    .filter((evento) => {
+      const categoriaDoEvento = evento.extendedProps.categoriaProfissional
+      if (categoriasSelecionadas.includes(categoriaDoEvento)) return true
+      if (
+        !['Enfermeiro', 'Médico', 'Técnico de Enfermagem', 'Gerente'].includes(categoriaDoEvento) &&
+        categoriasSelecionadas.includes('Outros')
+      )
+        return true
+      return false
+    })
 })
 
 const calendarOptions = reactive({
@@ -236,8 +230,22 @@ const calendarOptions = reactive({
   eventClick: (info) => handleEventClick(info),
 })
 
+watch(
+  competencia,
+  async (novaCompetencia) => {
+    if (!novaCompetencia) return
+    await carregarDados(novaCompetencia)
+    const [ano, mes] = novaCompetencia.split('-').map(Number)
+    const dataProximoMes = addMonths(new Date(ano, mes - 1, 15), 1)
+    if (fullCalendarRef.value) {
+      const calendarApi = fullCalendarRef.value.getApi()
+      calendarApi.gotoDate(dataProximoMes)
+    }
+  },
+  { immediate: true },
+)
+
 async function carregarDados(competenciaAtual) {
-  if (!competenciaAtual) return
   carregando.value = true
   const equipeId = storeUsuario.usuario?.equipeId
   if (!equipeId) {
@@ -247,9 +255,6 @@ async function carregarDados(competenciaAtual) {
   }
   try {
     const [profissionais, eventos] = await Promise.all([
-      // ===================================================================
-      // == CORREÇÃO 2: Chamando a função como um método do objeto importado
-      // ===================================================================
       ServicoSCNES.carregarProfissionais(competenciaAtual, equipeId),
       servicoCronograma.buscarCronograma(competenciaAtual, equipeId),
     ])
@@ -262,8 +267,6 @@ async function carregarDados(competenciaAtual) {
     carregando.value = false
   }
 }
-
-watch(competencia, carregarDados, { immediate: true })
 
 function abrirModalEvento(dadosIniciais = {}) {
   const defaults = {
@@ -291,6 +294,18 @@ function fecharModal() {
   modal.visivel = false
 }
 
+const competenciaVisualizada = computed(() => {
+  if (!competencia.value) return ''
+  const [ano, mes] = competencia.value.split('-').map(Number)
+  const dataProximoMes = addMonths(new Date(ano, mes - 1, 15), 1)
+  return format(dataProximoMes, 'yyyy-MM')
+})
+const competenciaVisualizadaFormatada = computed(() => {
+  if (!competenciaVisualizada.value) return ''
+  const [ano, mes] = competenciaVisualizada.value.split('-')
+  return `${mes}/${ano}`
+})
+
 async function handleSalvarEvento() {
   salvando.value = true
   try {
@@ -313,8 +328,6 @@ async function handleSalvarEvento() {
       profissionalNome: profSelecionado.nome,
       categoriaProfissional: profSelecionado.cargo,
     }
-
-    let eventosParaSalvar = []
     let eventosAtuais = [...eventosMaster.value]
 
     if (modal.modo === 'editar') {
@@ -324,8 +337,10 @@ async function handleSalvarEvento() {
       }
     } else {
       if (recorrencia.ativa && recorrencia.dias.length > 0) {
-        const [ano, mes] = competencia.value.split('-').map(Number)
+        const [ano, mes] = competenciaVisualizada.value.split('-').map(Number)
         const diasNoMes = new Date(ano, mes, 0).getDate()
+        let eventosParaSalvar = []
+
         for (let dia = 1; dia <= diasNoMes; dia++) {
           const dataAtual = new Date(ano, mes - 1, dia)
           if (recorrencia.dias.includes(dataAtual.getDay())) {
@@ -339,7 +354,7 @@ async function handleSalvarEvento() {
         if (eventosParaSalvar.length === 0) {
           storeNotificacoes.mostrarNotificacao({
             tipo: 'alerta',
-            mensagem: 'Nenhum dia correspondente encontrado para a recorrência.',
+            mensagem: 'Nenhum dia correspondente encontrado no mês do calendário.',
           })
           salvando.value = false
           return
@@ -355,10 +370,7 @@ async function handleSalvarEvento() {
       storeUsuario.usuario.equipeId,
       eventosAtuais,
     )
-    storeNotificacoes.mostrarNotificacao({
-      tipo: 'sucesso',
-      mensagem: 'Cronograma salvo com sucesso!',
-    })
+    storeNotificacoes.mostrarNotificacao({ tipo: 'sucesso', mensagem: 'Cronograma salvo!' })
     eventosMaster.value = eventosAtuais
     fecharModal()
   } catch (error) {
@@ -395,7 +407,6 @@ async function handleRemoverEvento() {
 </script>
 
 <style scoped>
-/* Estilos existentes do seu componente (não foram alterados) */
 .filtros-container {
   display: flex;
   align-items: center;
@@ -408,11 +419,6 @@ async function handleRemoverEvento() {
 .filtro-label {
   font-weight: 500;
 }
-.grupo-filtros {
-  display: flex;
-  gap: 1.5rem;
-  flex-wrap: wrap;
-}
 .grupo-filtros label {
   display: flex;
   align-items: center;
@@ -420,18 +426,12 @@ async function handleRemoverEvento() {
   cursor: pointer;
   font-size: 0.9rem;
 }
-.icone-filtro {
-  margin-bottom: 2px;
-}
 .evento-customizado {
   display: flex;
   align-items: center;
   gap: 5px;
   width: 100%;
   overflow: hidden;
-}
-.icone-evento {
-  flex-shrink: 0;
 }
 .titulo-evento {
   white-space: nowrap;
@@ -458,6 +458,7 @@ async function handleRemoverEvento() {
   max-width: 550px;
   display: flex;
   flex-direction: column;
+  max-height: 90vh;
 }
 .modal-cabecalho {
   display: flex;
@@ -481,6 +482,8 @@ async function handleRemoverEvento() {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  overflow-y: auto;
+  flex-grow: 1;
 }
 .modal-rodape {
   display: flex;
@@ -570,4 +573,38 @@ async function handleRemoverEvento() {
   color: white;
   border-color: var(--cor-primaria);
 }
+
+.letra-categoria,
+.letra-categoria-filtro {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 14px;
+  color: white;
+  flex-shrink: 0;
+}
+.letra-categoria-filtro {
+  width: 18px;
+  height: 18px;
+  font-size: 12px;
+}
+.cor-enf {
+  background-color: #3b82f6;
+} /* Azul */
+.cor-med {
+  background-color: #16a34a;
+} /* Verde */
+.cor-tec {
+  background-color: #f97316;
+} /* Laranja */
+.cor-ger {
+  background-color: #6d28d9;
+} /* Roxo */
+.cor-outros {
+  background-color: #64748b;
+} /* Cinza */
 </style>
