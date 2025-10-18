@@ -1,33 +1,16 @@
 <template>
-  <FullCalendar :options="opcoesCalendario">
-    <template #eventContent="{ event }">
-      <div v-if="event.extendedProps.isSeparator" class="separador-turno-impressao"></div>
-      <div v-else class="evento-customizado-impressao">
-        <span
-          class="letra-categoria"
-          :class="getEstiloParaCategoria(event.extendedProps.categoriaProfissional).classeCss"
-        >
-          {{ getEstiloParaCategoria(event.extendedProps.categoriaProfissional).letra }}
-        </span>
-        <span class="titulo-evento">
-          <span v-if="event.extendedProps.turno" class="turno-sigla"
-            >({{ event.extendedProps.turno.charAt(0) }})</span
-          >
-          {{ event.title }}
-        </span>
-      </div>
-    </template>
-  </FullCalendar>
+  <FullCalendar :options="calendarOptions" />
 </template>
 
 <script setup>
 import { computed } from 'vue'
 import FullCalendar from '@fullcalendar/vue3'
 import dayGridPlugin from '@fullcalendar/daygrid'
+import { startOfMonth, endOfMonth, addDays } from 'date-fns'
 
 const props = defineProps({
   competencia: { type: String, required: true },
-  eventos: { type: Array, required: true },
+  eventos: { type: Array, default: () => [] },
 })
 
 const categorias = [
@@ -43,9 +26,6 @@ function getEstiloParaCategoria(cargo) {
   return item || { letra: 'O', classeCss: 'cor-outros' }
 }
 
-// ===================================================================
-// == 💥 LÓGICA DO SEPARADOR INTELIGENTE PARA IMPRESSÃO DO ADMIN
-// ===================================================================
 const eventosProcessados = computed(() => {
   const dias = {}
   for (const evento of props.eventos) {
@@ -69,10 +49,10 @@ const eventosProcessados = computed(() => {
 
       if (ultimoIndexManha !== -1) {
         const separador = {
-          id: `sep-admin-${data}`,
+          id: `sep-${data}`,
           start: data,
           display: 'background',
-          isSeparator: true,
+          extendedProps: { isSeparator: true },
         }
         eventosDoDia.splice(ultimoIndexManha + 1, 0, separador)
       }
@@ -85,32 +65,113 @@ const eventosProcessados = computed(() => {
     title: e.titulo,
     start: e.data,
     display: e.display,
-    extendedProps: e,
+    extendedProps: e.extendedProps || e,
   }))
 })
 
-const opcoesCalendario = computed(() => ({
+const validRange = computed(() => {
+  if (!props.competencia) return {}
+  const dataCalendario = new Date(`${props.competencia}-15T12:00:00`)
+  return {
+    start: startOfMonth(dataCalendario),
+    end: addDays(endOfMonth(dataCalendario), 1),
+  }
+})
+
+const calendarOptions = computed(() => ({
   plugins: [dayGridPlugin],
   initialView: 'dayGridMonth',
   initialDate: props.competencia,
+  validRange: validRange.value,
   locale: 'pt-br',
   headerToolbar: false,
-  footerToolbar: false,
-  events: eventosProcessados.value, // <-- USA A NOVA COMPUTED
+  events: eventosProcessados.value,
   height: 'auto',
+  showNonCurrentDates: false,
   weekends: false,
-  dayHeaderFormat: { weekday: 'short' },
-  eventClassNames: function (arg) {
+  eventClassNames: (arg) => {
     if (arg.event.extendedProps.isSeparator) return []
     const estilo = getEstiloParaCategoria(arg.event.extendedProps.categoriaProfissional)
     return [estilo.classeCss]
   },
+  eventContent: (arg) => {
+    const props = arg.event.extendedProps
+    if (props.isSeparator) {
+      const el = document.createElement('div')
+      el.className = 'separador-turno-impressao'
+      return { domNodes: [el] }
+    }
+
+    const estilo = getEstiloParaCategoria(props.categoriaProfissional)
+    const container = document.createElement('div')
+    container.className = 'evento-customizado-impressao'
+    container.innerHTML = `
+      <span class="letra-categoria-evento ${estilo.classeCss}">${estilo.letra}</span>
+      <div class="titulo-evento-impressao">
+        <span class="turno-sigla-impressao">(${(props.turno || 'M').charAt(0)})</span>
+        ${arg.event.title}
+      </div>
+    `
+    return { domNodes: [container] }
+  },
 }))
 </script>
 
-<style scoped>
-/* Legendas e Cores */
-:deep(.letra-categoria) {
+<style>
+/* Estilos Globais para Impressão do Calendário (não 'scoped') */
+
+/* Cores Padrão */
+.cor-enf {
+  background-color: #3b82f6;
+  border-color: #3b82f6 !important;
+}
+.cor-med {
+  background-color: #16a34a;
+  border-color: #16a34a !important;
+}
+.cor-tec {
+  background-color: #f97316;
+  border-color: #f97316 !important;
+}
+.cor-ger {
+  background-color: #6d28d9;
+  border-color: #6d28d9 !important;
+}
+.cor-outros {
+  background-color: #64748b;
+  border-color: #64748b !important;
+}
+
+/* Estrutura do Calendário */
+.fc-daygrid-day-frame {
+  min-height: 110px !important;
+}
+.fc-day-today {
+  background: inherit !important;
+}
+.fc-daygrid-event {
+  background-color: transparent !important;
+  border-width: 1px !important;
+  border-style: solid !important;
+  padding: 1px 2px;
+  margin-top: 1px !important;
+  margin-bottom: 1px !important;
+}
+
+/* Conteúdo Customizado do Evento */
+.separador-turno-impressao {
+  height: 1px;
+  border-top: 1px dashed #ccc;
+  margin: 2px 0;
+}
+.evento-customizado-impressao {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  font-size: 8pt;
+  line-height: 1.2;
+}
+.letra-categoria-evento {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -118,61 +179,16 @@ const opcoesCalendario = computed(() => ({
   height: 14px;
   border-radius: 50%;
   font-weight: 700;
-  font-size: 10px;
   color: white;
+  font-size: 10px;
   flex-shrink: 0;
-  margin-top: 1px;
 }
-:deep(.cor-enf) {
-  background-color: #3b82f6;
-  border-color: #3b82f6 !important;
-}
-:deep(.cor-med) {
-  background-color: #16a34a;
-  border-color: #16a34a !important;
-}
-:deep(.cor-tec) {
-  background-color: #f97316;
-  border-color: #f97316 !important;
-}
-:deep(.cor-ger) {
-  background-color: #6d28d9;
-  border-color: #6d28d9 !important;
-}
-:deep(.cor-outros) {
-  background-color: #64748b;
-  border-color: #64748b !important;
-}
-
-/* =================================================================== */
-/* == 💥 ESTILOS CORRIGIDOS E NOVOS PARA IMPRESSÃO DO ADMIN */
-/* =================================================================== */
-:deep(.separador-turno-impressao) {
-  height: 1px;
-  border-top: 1px dashed #ccc;
-  margin: 1px 0;
-}
-:deep(.fc-daygrid-event) {
-  background-color: transparent !important;
-  border-width: 1px !important;
-  border-style: solid !important;
-  padding: 1px;
-}
-:deep(.evento-customizado-impressao) {
-  display: flex;
-  align-items: flex-start;
-  gap: 4px;
-  font-size: 7pt;
-  line-height: 1.2;
-}
-:deep(.titulo-evento) {
-  white-space: normal !important;
+.titulo-evento-impressao {
   color: #000 !important;
+  white-space: normal !important;
+  word-wrap: break-word;
 }
-:deep(.turno-sigla) {
+.turno-sigla-impressao {
   font-weight: 700;
-}
-:deep(.fc-day-today) {
-  background: inherit !important;
 }
 </style>

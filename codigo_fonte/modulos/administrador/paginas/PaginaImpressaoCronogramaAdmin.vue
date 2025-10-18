@@ -70,8 +70,10 @@
 
       <div class="legenda-icones">
         <strong>Legenda:</strong>
-        <div v-for="categoria in categoriasLegenda" :key="categoria.nome" class="legenda-item">
-          <component :is="categoria.icone" :size="16" />
+        <div v-for="categoria in categorias" :key="categoria.nome" class="legenda-item">
+          <span class="letra-categoria-legenda" :class="categoria.classeCss">{{
+            categoria.letra
+          }}</span>
           <span>{{ categoria.nome }}</span>
         </div>
       </div>
@@ -98,15 +100,7 @@ import { ref, onMounted, computed } from 'vue'
 import { servicoEquipes } from '@/nucleo/servicos_comuns/servicoEquipes'
 import { servicoCronograma } from '@/modulos/enfermeiro/servicos/servicoCronograma'
 import { addMonths, format } from 'date-fns'
-import {
-  FileSearch,
-  Printer,
-  ChevronDown,
-  Stethoscope,
-  HeartPulse,
-  Syringe,
-  User,
-} from 'lucide-vue-next'
+import { FileSearch, Printer, ChevronDown } from 'lucide-vue-next'
 import LogoCabecalhoImpressao from '@/nucleo/componentes/LogoCabecalhoImpressao.vue'
 import CalendarioImpressao from '../componentes/CalendarioImpressao.vue'
 
@@ -118,11 +112,15 @@ const buscando = ref(false)
 const erroBusca = ref('')
 const dadosRelatorio = ref(null)
 
-const categoriasLegenda = [
-  { nome: 'Enfermeiro', icone: Stethoscope },
-  { nome: 'Médico', icone: HeartPulse },
-  { nome: 'Técnico de Enfermagem', icone: Syringe },
-  { nome: 'Outros', icone: User },
+// ===================================================================
+// == 💥 ESTRUTURA DE DADOS DA LEGENDA CORRIGIDA
+// ===================================================================
+const categorias = [
+  { nome: 'Enfermeiro', letra: 'E', classeCss: 'cor-enf' },
+  { nome: 'Médico', letra: 'M', classeCss: 'cor-med' },
+  { nome: 'Técnico de Enfermagem', letra: 'T', classeCss: 'cor-tec' },
+  { nome: 'Gerente', letra: 'G', classeCss: 'cor-ger' },
+  { nome: 'Outros', letra: 'O', classeCss: 'cor-outros' },
 ]
 
 const todasEquipesSelecionadas = computed(
@@ -298,22 +296,6 @@ function imprimirPagina() {
   margin-top: 1rem;
   font-size: 9pt;
 }
-.legenda-icones {
-  display: flex;
-  gap: 1.5rem;
-  justify-content: center;
-  align-items: center;
-  flex-wrap: wrap;
-  padding: 0.75rem 0;
-  font-size: 9pt;
-  border-bottom: 1px solid #ccc;
-  margin-bottom: 1rem;
-}
-.legenda-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
 .corpo-impressao {
   padding-top: 1rem;
   flex-grow: 1;
@@ -352,6 +334,53 @@ function imprimirPagina() {
   padding: 1rem;
   border-radius: 8px;
 }
+
+/* =================================================================== */
+/* == 💥 ESTILOS ADICIONADOS PARA A NOVA LEGENDA */
+/* =================================================================== */
+.legenda-icones {
+  display: flex;
+  gap: 1.5rem;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 0.75rem 0;
+  font-size: 8pt;
+  border-bottom: 1px solid #ccc;
+  margin-bottom: 1rem;
+}
+.legenda-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.letra-categoria-legenda {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 11px;
+  color: white;
+}
+.cor-enf {
+  background-color: #3b82f6;
+}
+.cor-med {
+  background-color: #16a34a;
+}
+.cor-tec {
+  background-color: #f97316;
+}
+.cor-ger {
+  background-color: #6d28d9;
+}
+.cor-outros {
+  background-color: #64748b;
+}
+
 @media print {
   .no-print {
     display: none !important;

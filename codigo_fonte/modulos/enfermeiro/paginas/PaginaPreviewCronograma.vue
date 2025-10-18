@@ -34,7 +34,10 @@
         </div>
 
         <main class="corpo-impressao">
-          <FullCalendar :options="calendarOptions" />
+          <CalendarioImpressaoBase
+            :eventos="dados.eventos"
+            :competencia="dados.competenciaCalendario"
+          />
         </main>
 
         <footer class="rodape-impressao">
@@ -53,19 +56,18 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, reactive } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useStoreImpressao } from '@/nucleo/stores/storeImpressao'
 import LogoCabecalhoImpressao from '@/nucleo/componentes/LogoCabecalhoImpressao.vue'
-import FullCalendar from '@fullcalendar/vue3'
-import dayGridPlugin from '@fullcalendar/daygrid'
+import CalendarioImpressaoBase from '@/nucleo/componentes/impressao/CalendarioImpressaoBase.vue' // <-- 🚀 NOVO IMPORT
 import { Printer, ArrowLeft } from 'lucide-vue-next'
-import { startOfMonth, endOfMonth, addDays } from 'date-fns'
 
 const storeImpressao = useStoreImpressao()
 const router = useRouter()
 const dados = ref(null)
 
+// Apenas a legenda precisa disto agora
 const categorias = [
   { nome: 'Enfermeiro', letra: 'E', classeCss: 'cor-enf' },
   { nome: 'Médico', letra: 'M', classeCss: 'cor-med' },
@@ -73,35 +75,6 @@ const categorias = [
   { nome: 'Gerente', letra: 'G', classeCss: 'cor-ger' },
   { nome: 'Outros', letra: 'O', classeCss: 'cor-outros' },
 ]
-
-const calendarOptions = reactive({
-  plugins: [dayGridPlugin],
-  initialView: 'dayGridMonth',
-  locale: 'pt-br',
-  headerToolbar: false,
-  events: [],
-  height: 'auto',
-  showNonCurrentDates: false,
-  weekends: false,
-  validRange: {},
-  eventContent: (arg) => {
-    const estilo = getEstiloParaCategoria(arg.event.extendedProps.categoriaProfissional)
-    const container = document.createElement('div')
-    container.className = 'evento-customizado-impressao'
-    container.innerHTML = `
-      <span class="letra-categoria-evento ${estilo.classeCss}">${estilo.letra}</span>
-      <div class="fc-event-title">${arg.event.title}</div>
-    `
-    return { domNodes: [container] }
-  },
-})
-
-function getEstiloParaCategoria(cargo) {
-  const item = categorias.find((c) => c.nome === cargo)
-  return item
-    ? { letra: item.letra, classeCss: item.classeCss }
-    : { letra: 'O', classeCss: 'cor-outros' }
-}
 
 const competenciaFormatada = computed(() => {
   if (!dados.value?.competenciaCalendario) return ''
@@ -113,27 +86,11 @@ const competenciaFormatada = computed(() => {
 
 onMounted(() => {
   const dadosDoStore = storeImpressao.dadosParaImpressao
-  if (!dadosDoStore || dadosDoStore.tipo !== 'cronograma' || !dadosDoStore.competenciaCalendario) {
+  if (!dadosDoStore || dadosDoStore.tipo !== 'cronograma') {
     router.push({ name: 'EnfermeiroImpressaoCronograma' })
     return
   }
   dados.value = dadosDoStore
-
-  const dataCalendario = new Date(`${dadosDoStore.competenciaCalendario}-15T12:00:00`)
-
-  calendarOptions.validRange = {
-    start: startOfMonth(dataCalendario),
-    end: addDays(endOfMonth(dataCalendario), 1),
-  }
-
-  calendarOptions.initialDate = dadosDoStore.competenciaCalendario
-
-  calendarOptions.events = dadosDoStore.eventos.map((e) => ({
-    id: e.id,
-    title: e.titulo,
-    start: e.data,
-    extendedProps: e,
-  }))
   storeImpressao.limparDados()
 })
 
@@ -146,6 +103,7 @@ function voltar() {
 </script>
 
 <style scoped>
+/* Estilos da Página (Layout) */
 .botoes-acao-cabecalho {
   display: flex;
   gap: 1rem;
@@ -181,21 +139,6 @@ function voltar() {
   font-size: 9pt;
   text-align: left;
 }
-.legenda-icones {
-  display: flex;
-  gap: 1.5rem;
-  justify-content: center;
-  align-items: center;
-  padding: 0.75rem 0;
-  font-size: 9pt;
-  border-bottom: 1px solid #ccc;
-  margin-bottom: 1rem;
-}
-.legenda-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
 .corpo-impressao {
   flex-grow: 1;
 }
@@ -213,26 +156,37 @@ function voltar() {
 .assinatura p {
   margin: 2px 0;
 }
-.letra-categoria-legenda,
-.letra-categoria-evento {
+
+/* Estilos da Legenda (Permanecem aqui) */
+.legenda-icones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  justify-content: center;
+  align-items: center;
+  padding: 0.75rem 0;
+  font-size: 8pt;
+  border-bottom: 1px solid #ccc;
+  margin-bottom: 1rem;
+}
+.legenda-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.letra-categoria-legenda {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
   font-weight: 700;
   color: white;
-}
-.letra-categoria-legenda {
   width: 16px;
   height: 16px;
   font-size: 11px;
 }
-.letra-categoria-evento {
-  width: 14px;
-  height: 14px;
-  font-size: 10px;
-  flex-shrink: 0;
-}
+
+/* Cores (usadas pela legenda e pelo componente filho) */
 .cor-enf {
   background-color: #3b82f6;
 }
@@ -248,24 +202,7 @@ function voltar() {
 .cor-outros {
   background-color: #64748b;
 }
-:deep(.evento-customizado-impressao) {
-  display: flex;
-  align-items: flex-start;
-  gap: 4px;
-}
-:deep(.fc-daygrid-day-frame) {
-  min-height: 110px;
-}
-:deep(.fc-daygrid-event) {
-  height: auto !important;
-  white-space: normal !important;
-}
-:deep(.fc-event-title) {
-  white-space: normal !important;
-  word-wrap: break-word;
-  overflow: visible;
-  display: block;
-}
+
 @media print {
   .no-print {
     display: none !important;

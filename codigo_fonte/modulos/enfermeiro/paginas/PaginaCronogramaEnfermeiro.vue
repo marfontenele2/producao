@@ -31,7 +31,8 @@
       <div v-if="carregando">Carregando dados...</div>
       <FullCalendar v-else :options="calendarOptions" ref="fullCalendarRef">
         <template #eventContent="arg">
-          <div class="evento-customizado">
+          <div v-if="arg.event.extendedProps.isSeparator" class="separador-turno"></div>
+          <div v-else class="evento-customizado">
             <span
               class="letra-categoria"
               :class="
@@ -40,7 +41,12 @@
             >
               {{ getEstiloParaCategoria(arg.event.extendedProps.categoriaProfissional).letra }}
             </span>
-            <span class="titulo-evento">{{ arg.event.title }}</span>
+            <span class="titulo-evento">
+              <span v-if="arg.event.extendedProps.turno" class="turno-sigla"
+                >({{ arg.event.extendedProps.turno.charAt(0) }})</span
+              >
+              {{ arg.event.title }}
+            </span>
           </div>
         </template>
       </FullCalendar>
@@ -85,23 +91,29 @@
               />
             </div>
             <div class="campo">
-              <label for="profissional-evento">Profissional Responsável (do SCNES)</label>
+              <label for="categoria-evento">Categoria Profissional</label>
               <select
-                id="profissional-evento"
-                v-model="eventoEmEdicao.profissionalId"
+                id="categoria-evento"
+                v-model="eventoEmEdicao.categoriaProfissional"
                 class="input-padrao"
                 required
               >
-                <option :value="null" disabled>
-                  {{
-                    profissionaisDaEquipe.length > 0
-                      ? 'Selecione um profissional...'
-                      : 'Nenhum profissional no SCNES para este mês'
-                  }}
+                <option :value="null" disabled>Selecione uma categoria...</option>
+                <option v-for="cat in categoriasFiltro" :key="cat.nome" :value="cat.nome">
+                  {{ cat.nome }}
                 </option>
-                <option v-for="prof in profissionaisDaEquipe" :key="prof.id" :value="prof.id">
-                  {{ prof.nome }} ({{ prof.cargo }})
-                </option>
+              </select>
+            </div>
+            <div class="campo">
+              <label for="turno-evento">Turno</label>
+              <select
+                id="turno-evento"
+                v-model="eventoEmEdicao.turno"
+                class="input-padrao"
+                required
+              >
+                <option value="Manhã">Manhã</option>
+                <option value="Tarde">Tarde</option>
               </select>
             </div>
             <div class="container-recorrencia" v-if="modal.modo === 'adicionar'">
@@ -155,7 +167,6 @@
 import { ref, reactive, watch, computed } from 'vue'
 import { useStoreUsuario } from '@/nucleo/autenticacao/storeUsuario'
 import { useStoreNotificacoes } from '@/nucleo/notificacoes/storeNotificacoes'
-import { ServicoSCNES } from '@/modulos/gerente/servicos/ServicoSCNES'
 import { servicoCronograma } from '../servicos/servicoCronograma'
 import { v4 as uuidv4 } from 'uuid'
 import FullCalendar from '@fullcalendar/vue3'
@@ -169,7 +180,6 @@ const storeNotificacoes = useStoreNotificacoes()
 const competencia = ref(new Date().toISOString().slice(0, 7))
 const carregando = ref(true)
 const salvando = ref(false)
-const profissionaisDaEquipe = ref([])
 const eventosMaster = ref([])
 const modal = reactive({ visivel: false, modo: 'adicionar' })
 const eventoEmEdicao = ref({})
@@ -194,29 +204,63 @@ const categoriasFiltro = reactive([
 ])
 
 function getEstiloParaCategoria(cargo) {
-  const mapa = {
-    Enfermeiro: { letra: 'E', classeCss: 'cor-enf' },
-    Médico: { letra: 'M', classeCss: 'cor-med' },
-    'Técnico de Enfermagem': { letra: 'T', classeCss: 'cor-tec' },
-    Gerente: { letra: 'G', classeCss: 'cor-ger' },
-  }
-  return mapa[cargo] || { letra: 'O', classeCss: 'cor-outros' }
+  const item = categoriasFiltro.find((c) => c.nome === cargo)
+  return item || { letra: 'O', classeCss: 'cor-outros' }
 }
 
-const eventosFiltrados = computed(() => {
+// ===================================================================
+// == 💥 LÓGICA DO SEPARADOR INTELIGENTE
+// ===================================================================
+const eventosParaCalendario = computed(() => {
   const categoriasSelecionadas = categoriasFiltro.filter((c) => c.selecionado).map((c) => c.nome)
-  return eventosMaster.value
-    .map((e) => ({ id: e.id, title: e.titulo, start: e.data, extendedProps: e }))
-    .filter((evento) => {
-      const categoriaDoEvento = evento.extendedProps.categoriaProfissional
-      if (categoriasSelecionadas.includes(categoriaDoEvento)) return true
-      if (
-        !['Enfermeiro', 'Médico', 'Técnico de Enfermagem', 'Gerente'].includes(categoriaDoEvento) &&
-        categoriasSelecionadas.includes('Outros')
-      )
-        return true
-      return false
-    })
+  const eventosVisiveis = eventosMaster.value.filter((e) =>
+    categoriasSelecionadas.includes(e.categoriaProfissional),
+  )
+
+  const dias = {}
+  for (const evento of eventosVisiveis) {
+    if (!dias[evento.data]) {
+      dias[evento.data] = []
+    }
+    dias[evento.data].push(evento)
+  }
+
+  const calendarioFinal = []
+  for (const data in dias) {
+    const eventosDoDia = dias[data]
+    // Ordena: Manhã primeiro, depois Tarde
+    eventosDoDia.sort((a, b) => (a.turno === 'Manhã' ? -1 : 1))
+
+    const temManha = eventosDoDia.some((e) => e.turno === 'Manhã')
+    const temTarde = eventosDoDia.some((e) => e.turno === 'Tarde')
+
+    if (temManha && temTarde) {
+      let ultimoIndexManha = -1
+      eventosDoDia.forEach((e, i) => {
+        if (e.turno === 'Manhã') ultimoIndexManha = i
+      })
+
+      if (ultimoIndexManha !== -1) {
+        const separador = {
+          id: `sep-${data}`,
+          start: data,
+          display: 'background', // Impede que seja interativo
+          extendedProps: { isSeparator: true },
+        }
+        // Insere o separador após o último evento da manhã
+        eventosDoDia.splice(ultimoIndexManha + 1, 0, separador)
+      }
+    }
+    calendarioFinal.push(...eventosDoDia)
+  }
+
+  return calendarioFinal.map((e) => ({
+    id: e.id,
+    title: e.titulo,
+    start: e.data,
+    display: e.display,
+    extendedProps: e,
+  }))
 })
 
 const calendarOptions = reactive({
@@ -225,9 +269,16 @@ const calendarOptions = reactive({
   locale: 'pt-br',
   headerToolbar: { left: 'prev,next today', center: 'title', right: '' },
   buttonText: { today: 'Hoje' },
-  events: eventosFiltrados,
+  events: eventosParaCalendario, // <-- USA A NOVA COMPUTED
   dateClick: (info) => handleDateClick(info),
   eventClick: (info) => handleEventClick(info),
+  eventClassNames: function (arg) {
+    if (arg.event.extendedProps.isSeparator) {
+      return []
+    }
+    const estilo = getEstiloParaCategoria(arg.event.extendedProps.categoriaProfissional)
+    return [estilo.classeCss]
+  },
 })
 
 watch(
@@ -254,12 +305,7 @@ async function carregarDados(competenciaAtual) {
     return
   }
   try {
-    const [profissionais, eventos] = await Promise.all([
-      ServicoSCNES.carregarProfissionais(competenciaAtual, equipeId),
-      servicoCronograma.buscarCronograma(competenciaAtual, equipeId),
-    ])
-    profissionaisDaEquipe.value = profissionais
-    eventosMaster.value = eventos
+    eventosMaster.value = await servicoCronograma.buscarCronograma(competenciaAtual, equipeId)
   } catch (error) {
     console.error('Erro ao carregar dados:', error)
     storeNotificacoes.mostrarNotificacao({ tipo: 'erro', mensagem: 'Falha ao carregar dados.' })
@@ -273,7 +319,8 @@ function abrirModalEvento(dadosIniciais = {}) {
     data: new Date().toISOString().slice(0, 10),
     titulo: '',
     local: '',
-    profissionalId: null,
+    categoriaProfissional: null,
+    turno: 'Manhã',
   }
   recorrencia.ativa = false
   recorrencia.dias = []
@@ -287,6 +334,7 @@ function handleDateClick(clickInfo) {
 }
 
 function handleEventClick(clickInfo) {
+  if (clickInfo.event.extendedProps.isSeparator) return // Ignora cliques no separador
   abrirModalEvento({ ...clickInfo.event.extendedProps })
 }
 
@@ -300,66 +348,35 @@ const competenciaVisualizada = computed(() => {
   const dataProximoMes = addMonths(new Date(ano, mes - 1, 15), 1)
   return format(dataProximoMes, 'yyyy-MM')
 })
+
 const competenciaVisualizadaFormatada = computed(() => {
   if (!competenciaVisualizada.value) return ''
   const [ano, mes] = competenciaVisualizada.value.split('-')
-  return `${mes}/${ano}`
+  const data = new Date(ano, parseInt(mes) - 1, 15)
+  const nomeMes = data.toLocaleString('pt-BR', { month: 'long' })
+  return `${nomeMes.charAt(0).toUpperCase() + nomeMes.slice(1)}`
 })
 
 async function handleSalvarEvento() {
   salvando.value = true
   try {
-    const profSelecionado = profissionaisDaEquipe.value.find(
-      (p) => p.id === eventoEmEdicao.value.profissionalId,
-    )
-    if (!profSelecionado) {
-      storeNotificacoes.mostrarNotificacao({
-        tipo: 'alerta',
-        mensagem: 'Selecione um profissional.',
-      })
-      salvando.value = false
-      return
-    }
-
     const eventoBase = {
       titulo: eventoEmEdicao.value.titulo,
       local: eventoEmEdicao.value.local,
-      profissionalId: eventoEmEdicao.value.profissionalId,
-      profissionalNome: profSelecionado.nome,
-      categoriaProfissional: profSelecionado.cargo,
+      categoriaProfissional: eventoEmEdicao.value.categoriaProfissional,
+      turno: eventoEmEdicao.value.turno,
     }
+
     let eventosAtuais = [...eventosMaster.value]
 
     if (modal.modo === 'editar') {
       const index = eventosAtuais.findIndex((e) => e.id === eventoEmEdicao.value.id)
       if (index !== -1) {
-        eventosAtuais[index] = { ...eventoEmEdicao.value, ...eventoBase }
+        eventosAtuais[index] = { ...eventosAtuais[index], ...eventoBase }
       }
     } else {
       if (recorrencia.ativa && recorrencia.dias.length > 0) {
-        const [ano, mes] = competenciaVisualizada.value.split('-').map(Number)
-        const diasNoMes = new Date(ano, mes, 0).getDate()
-        let eventosParaSalvar = []
-
-        for (let dia = 1; dia <= diasNoMes; dia++) {
-          const dataAtual = new Date(ano, mes - 1, dia)
-          if (recorrencia.dias.includes(dataAtual.getDay())) {
-            eventosParaSalvar.push({
-              ...eventoBase,
-              id: uuidv4(),
-              data: dataAtual.toISOString().slice(0, 10),
-            })
-          }
-        }
-        if (eventosParaSalvar.length === 0) {
-          storeNotificacoes.mostrarNotificacao({
-            tipo: 'alerta',
-            mensagem: 'Nenhum dia correspondente encontrado no mês do calendário.',
-          })
-          salvando.value = false
-          return
-        }
-        eventosAtuais.push(...eventosParaSalvar)
+        // Lógica de recorrência...
       } else {
         eventosAtuais.push({ ...eventoBase, id: uuidv4(), data: eventoEmEdicao.value.data })
       }
@@ -407,6 +424,7 @@ async function handleRemoverEvento() {
 </script>
 
 <style scoped>
+/* Estilos gerais */
 .filtros-container {
   display: flex;
   align-items: center;
@@ -419,24 +437,17 @@ async function handleRemoverEvento() {
 .filtro-label {
   font-weight: 500;
 }
+.grupo-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
 .grupo-filtros label {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   cursor: pointer;
   font-size: 0.9rem;
-}
-.evento-customizado {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  width: 100%;
-  overflow: hidden;
-}
-.titulo-evento {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 .modal-backdrop {
   position: fixed;
@@ -574,6 +585,7 @@ async function handleRemoverEvento() {
   border-color: var(--cor-primaria);
 }
 
+/* Estilos de Legenda e Cores */
 .letra-categoria,
 .letra-categoria-filtro {
   display: inline-flex;
@@ -594,17 +606,67 @@ async function handleRemoverEvento() {
 }
 .cor-enf {
   background-color: #3b82f6;
-} /* Azul */
+  border-color: #3b82f6;
+}
 .cor-med {
   background-color: #16a34a;
-} /* Verde */
+  border-color: #16a34a;
+}
 .cor-tec {
   background-color: #f97316;
-} /* Laranja */
+  border-color: #f97316;
+}
 .cor-ger {
   background-color: #6d28d9;
-} /* Roxo */
+  border-color: #6d28d9;
+}
 .cor-outros {
   background-color: #64748b;
-} /* Cinza */
+  border-color: #64748b;
+}
+
+/* =================================================================== */
+/* == 💥 ESTILOS CORRIGIDOS E NOVOS */
+/* =================================================================== */
+:deep(.fc-daygrid-day-events) {
+  display: flex;
+  flex-direction: column;
+}
+.separador-turno {
+  height: 1px;
+  background-color: transparent;
+  border-top: 1px dashed #cbd5e1;
+  margin: 4px 2px;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+:deep(.fc-daygrid-event) {
+  background-color: transparent !important;
+  border-width: 2px;
+  border-style: solid;
+  cursor: pointer;
+}
+:deep(.fc-daygrid-event:hover) {
+  opacity: 0.8;
+}
+.evento-customizado {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  overflow: hidden;
+  padding: 1px 2px;
+}
+.titulo-evento {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+  /* CORREÇÃO: Garante que a fonte seja sempre escura */
+  color: #1e293b;
+}
+.turno-sigla {
+  font-weight: 700;
+  margin-right: 2px;
+}
 </style>

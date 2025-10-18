@@ -47,7 +47,7 @@
             class="grupo-formulario"
           >
             <label for="ubs">UBS</label>
-            <select id="ubs" v-model="form.ubsId" required @change="form.equipeId = ''">
+            <select id="ubs" v-model="form.ubsId" required>
               <option value="">Selecione uma UBS</option>
               <option v-for="ubs in listaUbs" :key="ubs.id" :value="ubs.id">{{ ubs.nome }}</option>
             </select>
@@ -74,9 +74,9 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { servicoEquipes } from '@/nucleo/servicos_comuns/servicoEquipes.js'
-import { Eye, EyeOff } from 'lucide-vue-next' // --- ALTERAÇÃO: Importa ícones ---
+import { Eye, EyeOff } from 'lucide-vue-next'
 
 const props = defineProps({
   usuarioParaEditar: { type: Object, default: null },
@@ -86,9 +86,8 @@ const props = defineProps({
 const emit = defineEmits(['fechar', 'salvar'])
 
 const ehEdicao = computed(() => !!props.usuarioParaEditar)
-
-// --- ALTERAÇÃO: Adiciona estado para controlar visibilidade da senha ---
 const mostrarSenha = ref(false)
+let unsubEquipes = null
 
 const form = ref({
   nome: '',
@@ -126,32 +125,56 @@ watch(
   { immediate: true },
 )
 
+// ===================================================================
+// == 💥 CORREÇÃO CRÍTICA: LÓGICA DE LIMPEZA REATIVA
+// Este watch garante que o formulário sempre tenha um estado válido.
+// ===================================================================
+watch(
+  () => form.value.role,
+  (newRole) => {
+    if (newRole === 'Gerente') {
+      form.value.equipeId = '' // Gerente não tem equipe, apenas UBS
+    } else if (newRole === 'Administrador' || newRole === 'Coordenador') {
+      form.value.ubsId = '' // Admin/Coord não tem UBS nem equipe
+      form.value.equipeId = ''
+    }
+  },
+)
+// Limpa a equipe se a UBS for alterada
+watch(
+  () => form.value.ubsId,
+  () => {
+    form.value.equipeId = ''
+  },
+)
+
 async function buscarTodasAsEquipes() {
   carregandoEquipes.value = true
-  servicoEquipes.monitorarEquipes((lista) => {
+  // Se já houver um listener, cancela antes de criar um novo
+  if (unsubEquipes) unsubEquipes()
+  unsubEquipes = servicoEquipes.monitorarEquipes((lista) => {
     todasAsEquipes.value = lista
     carregandoEquipes.value = false
   })
 }
 
 function submeterFormulario() {
-  const dadosParaSalvar = { ...form.value }
-  if (dadosParaSalvar.role === 'Administrador' || dadosParaSalvar.role === 'Coordenador') {
-    dadosParaSalvar.ubsId = null
-    dadosParaSalvar.equipeId = null
-  } else if (dadosParaSalvar.role === 'Gerente') {
-    dadosParaSalvar.equipeId = null
-  }
-  emit('salvar', dadosParaSalvar)
+  // A lógica de limpeza agora é tratada pelo watch, garantindo que os dados
+  // já estão corretos antes de serem emitidos.
+  emit('salvar', { ...form.value })
 }
 
 onMounted(() => {
   buscarTodasAsEquipes()
 })
+
+onUnmounted(() => {
+  if (unsubEquipes) unsubEquipes()
+})
 </script>
 
 <style scoped>
-/* Estilos para o Modal */
+/* Estilos permanecem inalterados */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -236,8 +259,6 @@ onMounted(() => {
   background-color: var(--cor-primaria);
   color: white;
 }
-
-/* --- NOVO ESTILO: Container do campo de senha --- */
 .campo-senha-container {
   position: relative;
   display: flex;
@@ -245,7 +266,7 @@ onMounted(() => {
 }
 .campo-senha-container input {
   width: 100%;
-  padding-right: 40px; /* Espaço para o ícone */
+  padding-right: 40px;
 }
 .botao-ver-senha {
   position: absolute;
